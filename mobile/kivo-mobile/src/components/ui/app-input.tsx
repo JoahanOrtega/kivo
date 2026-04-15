@@ -10,6 +10,8 @@ import {
 } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { radius } from "@/theme/radius";
+import { typography } from "@/theme/typography";
 
 type AppInputProps = {
     label: string;
@@ -19,9 +21,8 @@ type AppInputProps = {
 } & TextInputProps;
 
 /**
- * Input base reutilizable de la app.
- * Soporta refs y props nativas del TextInput para mejorar la experiencia
- * de formularios en móvil.
+ * Input base reutilizable de Kivo.
+ * Mejora la experiencia visual y mantiene consistencia entre formularios.
  */
 export const AppInput = forwardRef<TextInput, AppInputProps>(
     ({ label, error, style, containerStyle, inputStyle, ...inputProps }, ref) => {
@@ -29,8 +30,8 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(
             <View style={[{ marginBottom: 16 }, containerStyle]}>
                 <Text
                     style={{
-                        fontSize: 14,
-                        fontWeight: "600",
+                        fontSize: typography.bodySm,
+                        fontWeight: typography.weightSemibold,
                         color: colors.text,
                         marginBottom: 8,
                     }}
@@ -45,24 +46,25 @@ export const AppInput = forwardRef<TextInput, AppInputProps>(
                         {
                             borderWidth: 1,
                             borderColor: error ? colors.danger : colors.border,
-                            borderRadius: 12,
+                            borderRadius: radius.lg,
                             paddingHorizontal: 14,
-                            paddingVertical: 14,
-                            fontSize: 16,
+                            paddingVertical: 15,
+                            fontSize: typography.bodyLg,
                             color: colors.text,
-                            backgroundColor: "#FFFFFF",
+                            backgroundColor: colors.white,
                         },
                         inputStyle,
                         style,
                     ]}
-                    placeholderTextColor={colors.textMuted}
+                    placeholderTextColor={colors.textSoft}
+                    selectionColor={colors.primary}
                 />
 
                 {error ? (
                     <Text
                         style={{
                             marginTop: 6,
-                            fontSize: 13,
+                            fontSize: typography.caption,
                             color: colors.danger,
                         }}
                     >

@@ -1,18 +1,20 @@
 import { Text, TouchableOpacity, ViewStyle } from "react-native";
 
 import { colors } from "@/theme/colors";
+import { radius } from "@/theme/radius";
+import { typography } from "@/theme/typography";
 
 type AppButtonProps = {
   label: string;
   onPress: () => void;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "ghost";
   disabled?: boolean;
   style?: ViewStyle;
 };
 
 /**
- * Botón reutilizable base del proyecto.
- * Permite mantener consistencia visual y evitar estilos duplicados.
+ * Botón base reutilizable del sistema.
+ * Permite mantener consistencia visual entre acciones primarias y secundarias.
  */
 export function AppButton({
   label,
@@ -22,28 +24,39 @@ export function AppButton({
   style,
 }: AppButtonProps) {
   const isPrimary = variant === "primary";
+  const isSecondary = variant === "secondary";
+
+  const backgroundColor = isPrimary
+    ? colors.primary
+    : isSecondary
+      ? colors.surface
+      : "transparent";
+
+  const borderColor = isPrimary ? colors.primary : colors.border;
+  const textColor = isPrimary ? colors.white : colors.text;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled}
+      activeOpacity={0.85}
       style={{
-        backgroundColor: isPrimary ? colors.primary : colors.surface,
-        borderWidth: isPrimary ? 0 : 1,
-        borderColor: colors.border,
-        paddingVertical: 14,
+        backgroundColor,
+        borderWidth: variant === "ghost" ? 0 : 1,
+        borderColor,
+        paddingVertical: 15,
         paddingHorizontal: 16,
-        borderRadius: 12,
+        borderRadius: radius.lg,
         opacity: disabled ? 0.6 : 1,
         ...style,
       }}
     >
       <Text
         style={{
-          color: isPrimary ? "#FFFFFF" : colors.text,
+          color: textColor,
           textAlign: "center",
-          fontSize: 16,
-          fontWeight: "600",
+          fontSize: typography.bodyLg,
+          fontWeight: typography.weightSemibold,
         }}
       >
         {label}
