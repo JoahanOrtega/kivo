@@ -1,6 +1,8 @@
 import { getDatabase } from "@/database/db";
-import { enqueueSyncOperation } from "@/features/sync/sync-queue.service";
-
+import {
+    enqueueOrMergeSyncOperation,
+    removeOpenQueueItems,
+} from "@/features/sync/sync-queue.service";
 export type CreateTransactionInput = {
     userId: string;
     type: "income" | "expense";
@@ -117,7 +119,7 @@ export async function createTransaction(
         ]
     );
 
-    await enqueueSyncOperation({
+    await enqueueOrMergeSyncOperation({
         entityType: "transaction",
         entityLocalId: localId,
         operationType: "create",
@@ -204,7 +206,7 @@ export async function updateTransaction(
         ]
     );
 
-    await enqueueSyncOperation({
+    await enqueueOrMergeSyncOperation({
         entityType: "transaction",
         entityLocalId: input.localId,
         operationType: "update",
@@ -215,6 +217,40 @@ export async function updateTransaction(
 export async function deleteTransaction(localId: string): Promise<void> {
     const db = await getDatabase();
     const now = new Date().toISOString();
+
+    const current = await db.getFirstAsync<{
+        sync_status: string;
+    }>(
+        `
+      SELECT sync_status
+      FROM transactions
+      WHERE local_id = ?
+      LIMIT 1
+    `,
+        [localId]
+    );
+
+    /**
+     * Si el registro nunca se sincronizó y todavía estaba como pending_create,
+     * al eliminarlo podemos quitarlo por completo de la base y de la cola.
+     * Para el backend, es como si nunca hubiera existido.
+     */
+    if (current?.sync_status === "pending_create") {
+        await db.runAsync(
+            `
+        DELETE FROM transactions
+        WHERE local_id = ?
+      `,
+            [localId]
+        );
+
+        await removeOpenQueueItems({
+            entityType: "transaction",
+            entityLocalId: localId,
+        });
+
+        return;
+    }
 
     await db.runAsync(
         `
@@ -228,7 +264,7 @@ export async function deleteTransaction(localId: string): Promise<void> {
         [now, now, localId]
     );
 
-    await enqueueSyncOperation({
+    await enqueueOrMergeSyncOperation({
         entityType: "transaction",
         entityLocalId: localId,
         operationType: "delete",
