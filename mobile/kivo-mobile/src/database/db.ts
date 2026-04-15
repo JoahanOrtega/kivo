@@ -4,7 +4,7 @@ import * as SQLite from "expo-sqlite";
  * Nombre único de la base local del MVP.
  * Aquí vivirán catálogos, movimientos y metadatos de sincronización.
  */
-const DATABASE_NAME = "kivo.db";
+const DATABASE_NAME = "kivo_v2.db";
 
 /**
  * Instancia singleton de la base local.

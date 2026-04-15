@@ -1,6 +1,6 @@
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppCard } from "@/components/ui/app-card";
@@ -115,79 +115,85 @@ export default function HistoryScreen() {
                             const isIncome = item.type === "income";
 
                             return (
-                                <AppCard key={item.localId}>
-                                    <View
-                                        style={{
-                                            flexDirection: "row",
-                                            justifyContent: "space-between",
-                                            alignItems: "flex-start",
-                                            marginBottom: spacing.sm,
-                                        }}
-                                    >
-                                        <View style={{ flex: 1, paddingRight: spacing.md }}>
-                                            <Text
-                                                style={{
-                                                    fontSize: typography.bodyLg,
-                                                    fontWeight: typography.weightBold,
-                                                    color: colors.text,
-                                                    marginBottom: spacing.xs,
-                                                }}
-                                            >
-                                                {item.concept || "Sin concepto"}
-                                            </Text>
-
-                                            <Text
-                                                style={{
-                                                    fontSize: typography.bodySm,
-                                                    color: colors.textMuted,
-                                                }}
-                                            >
-                                                {item.categoryName} · {item.accountName}
-                                            </Text>
-                                        </View>
-
+                                <TouchableOpacity
+                                    key={item.localId}
+                                    activeOpacity={0.85}
+                                    onPress={() => router.push(`/edit-transaction/${item.localId}`)}
+                                >
+                                    <AppCard>
                                         <View
                                             style={{
-                                                backgroundColor: isIncome
-                                                    ? colors.successSoft
-                                                    : colors.dangerSoft,
-                                                paddingHorizontal: 12,
-                                                paddingVertical: 8,
-                                                borderRadius: 999,
+                                                flexDirection: "row",
+                                                justifyContent: "space-between",
+                                                alignItems: "flex-start",
+                                                marginBottom: spacing.sm,
                                             }}
                                         >
-                                            <Text
+                                            <View style={{ flex: 1, paddingRight: spacing.md }}>
+                                                <Text
+                                                    style={{
+                                                        fontSize: typography.bodyLg,
+                                                        fontWeight: typography.weightBold,
+                                                        color: colors.text,
+                                                        marginBottom: spacing.xs,
+                                                    }}
+                                                >
+                                                    {item.concept || "Sin concepto"}
+                                                </Text>
+
+                                                <Text
+                                                    style={{
+                                                        fontSize: typography.bodySm,
+                                                        color: colors.textMuted,
+                                                    }}
+                                                >
+                                                    {item.categoryName} · {item.accountName}
+                                                </Text>
+                                            </View>
+
+                                            <View
                                                 style={{
-                                                    color: isIncome ? colors.success : colors.danger,
-                                                    fontWeight: typography.weightSemibold,
-                                                    fontSize: typography.bodySm,
+                                                    backgroundColor: isIncome
+                                                        ? colors.successSoft
+                                                        : colors.dangerSoft,
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 8,
+                                                    borderRadius: 999,
                                                 }}
                                             >
-                                                {isIncome ? "Ingreso" : "Egreso"}
-                                            </Text>
+                                                <Text
+                                                    style={{
+                                                        color: isIncome ? colors.success : colors.danger,
+                                                        fontWeight: typography.weightSemibold,
+                                                        fontSize: typography.bodySm,
+                                                    }}
+                                                >
+                                                    {isIncome ? "Ingreso" : "Egreso"}
+                                                </Text>
+                                            </View>
                                         </View>
-                                    </View>
 
-                                    <Text
-                                        style={{
-                                            fontSize: typography.titleSection,
-                                            fontWeight: typography.weightBold,
-                                            color: isIncome ? colors.success : colors.danger,
-                                            marginBottom: spacing.sm,
-                                        }}
-                                    >
-                                        ${item.amount.toFixed(2)}
-                                    </Text>
+                                        <Text
+                                            style={{
+                                                fontSize: typography.titleSection,
+                                                fontWeight: typography.weightBold,
+                                                color: isIncome ? colors.success : colors.danger,
+                                                marginBottom: spacing.sm,
+                                            }}
+                                        >
+                                            ${item.amount.toFixed(2)}
+                                        </Text>
 
-                                    <Text
-                                        style={{
-                                            fontSize: typography.bodySm,
-                                            color: colors.textMuted,
-                                        }}
-                                    >
-                                        {new Date(item.transactionDate).toLocaleString()}
-                                    </Text>
-                                </AppCard>
+                                        <Text
+                                            style={{
+                                                fontSize: typography.bodySm,
+                                                color: colors.textMuted,
+                                            }}
+                                        >
+                                            {new Date(item.transactionDate).toLocaleString()}
+                                        </Text>
+                                    </AppCard>
+                                </TouchableOpacity>
                             );
                         })}
                     </View>
