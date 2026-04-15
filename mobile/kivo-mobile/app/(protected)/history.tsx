@@ -18,6 +18,8 @@ import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
+import { AppInput } from "@/components/ui/app-input";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type FilterType = "all" | "income" | "expense";
 
@@ -35,6 +37,9 @@ export default function HistoryScreen() {
 
     const [categories, setCategories] = useState<Category[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+
+    const [searchText, setSearchText] = useState("");
+    const debouncedSearchText = useDebouncedValue(searchText, 350);
 
     const [items, setItems] = useState<
         Array<{
@@ -91,6 +96,7 @@ export default function HistoryScreen() {
                 type: typeFilter,
                 categoryId: categoryFilter || undefined,
                 accountId: accountFilter || undefined,
+                searchText: debouncedSearchText || undefined,
             };
 
             const history = await getTransactionHistory(session.user.id, filters);
@@ -105,6 +111,7 @@ export default function HistoryScreen() {
         typeFilter,
         categoryFilter,
         accountFilter,
+        debouncedSearchText,
     ]);
 
     useFocusEffect(
@@ -192,6 +199,43 @@ export default function HistoryScreen() {
                     >
                         Filtros
                     </Text>
+
+                    <AppInput
+                        label="Buscar"
+                        value={searchText}
+                        onChangeText={setSearchText}
+                        placeholder="Ej. DiDi, Apple bill, BBVA"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                    />
+
+                    {searchText.trim().length > 0 ? (
+                        <TouchableOpacity
+                            onPress={() => setSearchText("")}
+                            activeOpacity={0.85}
+                            style={{
+                                alignSelf: "flex-start",
+                                marginTop: -4,
+                                marginBottom: spacing.md,
+                                paddingHorizontal: 12,
+                                paddingVertical: 8,
+                                borderRadius: 999,
+                                backgroundColor: colors.surfaceMuted,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    color: colors.textMuted,
+                                    fontSize: typography.bodySm,
+                                    fontWeight: typography.weightSemibold,
+                                }}
+                            >
+                                Limpiar búsqueda
+                            </Text>
+                        </TouchableOpacity>
+                    ) : null}
 
                     <Text
                         style={{

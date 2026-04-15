@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import {
@@ -32,6 +32,11 @@ import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
+import {
+    dateInputToIso,
+    formatDateInput,
+    isoToDateInput,
+} from "@/utils/date-format";
 
 export default function EditTransactionScreen() {
     const { localId } = useLocalSearchParams<{ localId: string }>();
@@ -43,7 +48,6 @@ export default function EditTransactionScreen() {
     const {
         control,
         handleSubmit,
-        setValue,
         reset,
         formState: { errors, isSubmitting },
     } = useForm<TransactionFormValues>({
@@ -51,6 +55,7 @@ export default function EditTransactionScreen() {
         defaultValues: {
             type: "expense",
             amount: "",
+            transactionDate: "",
             categoryId: "",
             accountId: "",
             concept: "",
@@ -83,6 +88,7 @@ export default function EditTransactionScreen() {
                 reset({
                     type: transaction.type,
                     amount: String(transaction.amount),
+                    transactionDate: isoToDateInput(transaction.transactionDate),
                     categoryId: transaction.categoryId,
                     accountId: transaction.accountId,
                     concept: transaction.concept ?? "",
@@ -125,7 +131,8 @@ export default function EditTransactionScreen() {
             accountId: values.accountId,
             concept: values.concept?.trim() || null,
             note: values.note?.trim() || null,
-        });
+            transactionDate: dateInputToIso(values.transactionDate),
+        } as any);
 
         router.back();
     };
@@ -284,6 +291,21 @@ export default function EditTransactionScreen() {
                                     fontWeight: typography.weightBold,
                                     paddingVertical: 18,
                                 }}
+                            />
+                        )}
+                    />
+
+                    <Controller
+                        control={control}
+                        name="transactionDate"
+                        render={({ field: { value, onChange } }) => (
+                            <AppInput
+                                label="Fecha"
+                                value={value}
+                                onChangeText={(text) => onChange(formatDateInput(text))}
+                                placeholder="DD/MM/YYYY"
+                                keyboardType="numeric"
+                                error={errors.transactionDate?.message}
                             />
                         )}
                     />

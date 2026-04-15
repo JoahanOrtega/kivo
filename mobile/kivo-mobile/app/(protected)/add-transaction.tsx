@@ -28,6 +28,7 @@ import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
+import { dateInputToIso, formatDateInput, getTodayDateInput } from "@/utils/date-format";
 
 export default function AddTransactionScreen() {
     const session = useAuthStore((state) => state.session);
@@ -46,6 +47,7 @@ export default function AddTransactionScreen() {
         defaultValues: {
             type: "expense",
             amount: "",
+            transactionDate: getTodayDateInput(),
             categoryId: "",
             accountId: "",
             concept: "",
@@ -96,7 +98,7 @@ export default function AddTransactionScreen() {
             accountId: values.accountId,
             concept: values.concept?.trim() || null,
             note: values.note?.trim() || null,
-            transactionDate: new Date().toISOString(),
+            transactionDate: dateInputToIso(values.transactionDate),
         });
 
         router.back();
@@ -236,6 +238,21 @@ export default function AddTransactionScreen() {
                                             fontWeight: typography.weightBold,
                                             paddingVertical: 18,
                                         }}
+                                    />
+                                )}
+                            />
+
+                            <Controller
+                                control={control}
+                                name="transactionDate"
+                                render={({ field: { value, onChange } }) => (
+                                    <AppInput
+                                        label="Fecha"
+                                        value={value}
+                                        onChangeText={(text) => onChange(formatDateInput(text))}
+                                        placeholder="DD/MM/YYYY"
+                                        keyboardType="numeric"
+                                        error={errors.transactionDate?.message}
                                     />
                                 )}
                             />

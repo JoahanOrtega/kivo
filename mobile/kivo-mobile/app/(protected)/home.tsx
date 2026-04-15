@@ -1,10 +1,11 @@
 import { useFocusEffect, router } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppCard } from "@/components/ui/app-card";
 import { MonthSelector } from "@/components/ui/month-selector";
+import { PeriodChips } from "@/components/ui/period-chips";
 import { BRAND } from "@/constants/brand";
 import {
     getDashboardSummary,
@@ -29,8 +30,30 @@ export default function HomeScreen() {
         totalExpense: 0,
         balance: 0,
         transactionCount: 0,
+        pendingSyncCount: 0,
+        categoriesSummary: [],
+        accountsSummary: [],
     });
     const [isLoading, setIsLoading] = useState(true);
+
+    const activePeriodKey = useMemo(() => {
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        const previousDate = new Date(currentYear, currentMonth - 2, 1);
+        const previousMonth = previousDate.getMonth() + 1;
+        const previousYear = previousDate.getFullYear();
+
+        if (selectedMonth === currentMonth && selectedYear === currentYear) {
+            return "current" as const;
+        }
+
+        if (selectedMonth === previousMonth && selectedYear === previousYear) {
+            return "previous" as const;
+        }
+
+        return "custom" as const;
+    }, [selectedMonth, selectedYear, now]);
 
     const loadDashboard = useCallback(async () => {
         if (!session?.user.id) {
@@ -79,6 +102,17 @@ export default function HomeScreen() {
         setSelectedMonth((prev) => prev + 1);
     };
 
+    const handleSelectCurrentMonth = () => {
+        setSelectedMonth(now.getMonth() + 1);
+        setSelectedYear(now.getFullYear());
+    };
+
+    const handleSelectPreviousMonth = () => {
+        const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        setSelectedMonth(previousDate.getMonth() + 1);
+        setSelectedYear(previousDate.getFullYear());
+    };
+
     const handleLogout = async () => {
         await logout();
         router.replace("/login");
@@ -119,6 +153,12 @@ export default function HomeScreen() {
                         Tu resumen financiero del mes, en un solo lugar.
                     </Text>
                 </View>
+
+                <PeriodChips
+                    activeKey={activePeriodKey}
+                    onSelectCurrent={handleSelectCurrentMonth}
+                    onSelectPrevious={handleSelectPreviousMonth}
+                />
 
                 <MonthSelector
                     month={selectedMonth}
@@ -228,6 +268,152 @@ export default function HomeScreen() {
                                 </Text>
                             </AppCard>
                         </View>
+
+                        {summary.pendingSyncCount > 0 ? (
+                            <AppCard
+                                style={{
+                                    marginBottom: spacing.lg,
+                                    backgroundColor: colors.warningSoft,
+                                    borderColor: colors.warningSoft,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: colors.warning,
+                                        fontSize: typography.bodyLg,
+                                        fontWeight: typography.weightSemibold,
+                                        marginBottom: spacing.xs,
+                                    }}
+                                >
+                                    Pendientes de sincronización
+                                </Text>
+
+                                <Text
+                                    style={{
+                                        color: colors.text,
+                                        fontSize: typography.bodyMd,
+                                        lineHeight: 22,
+                                    }}
+                                >
+                                    Tienes {summary.pendingSyncCount} movimiento(s) pendiente(s)
+                                    por sincronizar.
+                                </Text>
+                            </AppCard>
+                        ) : null}
+
+                        <AppCard style={{ marginBottom: spacing.lg }}>
+                            <Text
+                                style={{
+                                    fontSize: typography.titleSection,
+                                    fontWeight: typography.weightBold,
+                                    color: colors.text,
+                                    marginBottom: spacing.md,
+                                }}
+                            >
+                                Resumen por categoría
+                            </Text>
+
+                            {summary.categoriesSummary.length === 0 ? (
+                                <Text
+                                    style={{
+                                        color: colors.textMuted,
+                                        fontSize: typography.bodyMd,
+                                        lineHeight: 22,
+                                    }}
+                                >
+                                    Aún no hay datos para agrupar por categoría este mes.
+                                </Text>
+                            ) : (
+                                <View style={{ gap: spacing.md }}>
+                                    {summary.categoriesSummary.map((item) => (
+                                        <View
+                                            key={item.categoryId}
+                                            style={{
+                                                flexDirection: "row",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                            }}
+                                        >
+                                            <Text
+                                                style={{
+                                                    color: colors.text,
+                                                    fontSize: typography.bodyMd,
+                                                    fontWeight: typography.weightSemibold,
+                                                }}
+                                            >
+                                                {item.categoryName}
+                                            </Text>
+
+                                            <Text
+                                                style={{
+                                                    color: colors.textMuted,
+                                                    fontSize: typography.bodyMd,
+                                                }}
+                                            >
+                                                ${item.totalAmount.toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </AppCard>
+
+                        <AppCard style={{ marginBottom: spacing.lg }}>
+                            <Text
+                                style={{
+                                    fontSize: typography.titleSection,
+                                    fontWeight: typography.weightBold,
+                                    color: colors.text,
+                                    marginBottom: spacing.md,
+                                }}
+                            >
+                                Resumen por cuenta
+                            </Text>
+
+                            {summary.accountsSummary.length === 0 ? (
+                                <Text
+                                    style={{
+                                        color: colors.textMuted,
+                                        fontSize: typography.bodyMd,
+                                        lineHeight: 22,
+                                    }}
+                                >
+                                    Aún no hay datos para agrupar por cuenta este mes.
+                                </Text>
+                            ) : (
+                                <View style={{ gap: spacing.md }}>
+                                    {summary.accountsSummary.map((item) => (
+                                        <View
+                                            key={item.accountId}
+                                            style={{
+                                                flexDirection: "row",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                            }}
+                                        >
+                                            <Text
+                                                style={{
+                                                    color: colors.text,
+                                                    fontSize: typography.bodyMd,
+                                                    fontWeight: typography.weightSemibold,
+                                                }}
+                                            >
+                                                {item.accountName}
+                                            </Text>
+
+                                            <Text
+                                                style={{
+                                                    color: colors.textMuted,
+                                                    fontSize: typography.bodyMd,
+                                                }}
+                                            >
+                                                ${item.totalAmount.toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </AppCard>
 
                         <AppCard style={{ marginBottom: spacing.lg }}>
                             <Text

@@ -18,6 +18,7 @@ export type UpdateTransactionInput = {
     amount: number;
     categoryId: string;
     accountId: string;
+    transactionDate: string;
     concept?: string | null;
     note?: string | null;
 };
@@ -41,6 +42,7 @@ export type TransactionHistoryFilters = {
     type?: "all" | "income" | "expense";
     categoryId?: string;
     accountId?: string;
+    searchText?: string;
 };
 
 function generateLocalId(): string {
@@ -154,23 +156,25 @@ export async function updateTransaction(
 
     await db.runAsync(
         `
-      UPDATE transactions
-      SET
-        type = ?,
-        amount = ?,
-        category_id = ?,
-        account_id = ?,
-        concept = ?,
-        note = ?,
-        sync_status = ?,
-        updated_at = ?
-      WHERE local_id = ?
-    `,
+    UPDATE transactions
+    SET
+      type = ?,
+      amount = ?,
+      category_id = ?,
+      account_id = ?,
+      transaction_date = ?,
+      concept = ?,
+      note = ?,
+      sync_status = ?,
+      updated_at = ?
+    WHERE local_id = ?
+  `,
         [
             input.type,
             input.amount,
             input.categoryId,
             input.accountId,
+            input.transactionDate,
             input.concept ?? null,
             input.note ?? null,
             nextSyncStatus,
@@ -236,6 +240,20 @@ export async function getTransactionHistory(
     if (filters.accountId) {
         conditions.push("t.account_id = ?");
         params.push(filters.accountId);
+    }
+
+    if (filters.searchText?.trim()) {
+        conditions.push(`
+    (
+      LOWER(COALESCE(t.concept, '')) LIKE ?
+      OR LOWER(COALESCE(t.note, '')) LIKE ?
+      OR LOWER(c.name) LIKE ?
+      OR LOWER(a.name) LIKE ?
+    )
+  `);
+
+        const pattern = `%${filters.searchText.trim().toLowerCase()}%`;
+        params.push(pattern, pattern, pattern, pattern);
     }
 
     const whereClause = conditions.join(" AND ");
