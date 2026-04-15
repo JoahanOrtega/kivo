@@ -4,20 +4,32 @@ import {
     ActivityIndicator,
     ScrollView,
     Text,
-    TouchableOpacity,
     View,
 } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppButton } from "@/components/ui/app-button";
 import { AppCard } from "@/components/ui/app-card";
+import { SyncStatusBadge } from "@/components/ui/sync-status-badge";
 import { useToast } from "@/components/ui/toast-provider";
-import { getAllSyncQueueItems, getPendingSyncCount } from "@/features/sync/sync-queue.service";
+import {
+    getAllSyncQueueItems,
+    getPendingSyncCount,
+} from "@/features/sync/sync-queue.service";
 import { mockSyncExecutor, processSyncQueue } from "@/features/sync/sync.service";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { SyncQueueItem } from "@/types/sync";
+
+function mapQueueStatusToTransactionLikeStatus(
+    status: SyncQueueItem["status"]
+): string {
+    if (status === "completed") return "synced";
+    if (status === "failed") return "failed";
+    if (status === "processing") return "pending_update";
+    return "pending_create";
+}
 
 export default function SyncInspectorScreen() {
     const { showToast } = useToast();
@@ -67,20 +79,6 @@ export default function SyncInspectorScreen() {
         } finally {
             setIsProcessing(false);
         }
-    };
-
-    const getStatusColor = (status: SyncQueueItem["status"]) => {
-        if (status === "completed") return colors.success;
-        if (status === "failed") return colors.danger;
-        if (status === "processing") return colors.warning;
-        return colors.primary;
-    };
-
-    const getStatusBackground = (status: SyncQueueItem["status"]) => {
-        if (status === "completed") return colors.successSoft;
-        if (status === "failed") return colors.dangerSoft;
-        if (status === "processing") return colors.warningSoft;
-        return colors.primarySoft;
     };
 
     return (
@@ -210,29 +208,15 @@ export default function SyncInspectorScreen() {
                                                 style={{
                                                     fontSize: typography.bodySm,
                                                     color: colors.textMuted,
+                                                    marginBottom: spacing.sm,
                                                 }}
                                             >
                                                 Retries: {item.retryCount}
                                             </Text>
-                                        </View>
 
-                                        <View
-                                            style={{
-                                                backgroundColor: getStatusBackground(item.status),
-                                                paddingHorizontal: 12,
-                                                paddingVertical: 8,
-                                                borderRadius: 999,
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    color: getStatusColor(item.status),
-                                                    fontSize: typography.bodySm,
-                                                    fontWeight: typography.weightSemibold,
-                                                }}
-                                            >
-                                                {item.status}
-                                            </Text>
+                                            <SyncStatusBadge
+                                                status={mapQueueStatusToTransactionLikeStatus(item.status)}
+                                            />
                                         </View>
                                     </View>
 
@@ -257,8 +241,7 @@ export default function SyncInspectorScreen() {
                                         </View>
                                     ) : null}
 
-                                    <TouchableOpacity
-                                        activeOpacity={0.85}
+                                    <View
                                         style={{
                                             backgroundColor: colors.surfaceMuted,
                                             borderRadius: 12,
@@ -271,11 +254,11 @@ export default function SyncInspectorScreen() {
                                                 fontSize: typography.caption,
                                                 lineHeight: 18,
                                             }}
-                                            numberOfLines={6}
+                                            numberOfLines={8}
                                         >
                                             {item.payloadJson}
                                         </Text>
-                                    </TouchableOpacity>
+                                    </View>
                                 </AppCard>
                             ))}
                         </View>

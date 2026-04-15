@@ -284,6 +284,7 @@ export async function getTransactionHistory(
         transactionDate: string;
         categoryName: string;
         accountName: string;
+        syncStatus: string;
     }>
 > {
     const db = await getDatabase();
@@ -337,6 +338,7 @@ export async function getTransactionHistory(
         t.amount as amount,
         t.concept as concept,
         t.transaction_date as transactionDate,
+        t.sync_status as syncStatus,
         c.name as categoryName,
         a.name as accountName
       FROM transactions t

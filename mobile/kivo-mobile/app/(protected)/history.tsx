@@ -4,8 +4,11 @@ import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppCard } from "@/components/ui/app-card";
-import { useToast } from "@/components/ui/toast-provider";
+import { AppInput } from "@/components/ui/app-input";
 import { MonthSelector } from "@/components/ui/month-selector";
+import { SyncStatusBadge } from "@/components/ui/sync-status-badge";
+import { useToast } from "@/components/ui/toast-provider";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
     getAccountsByTransactionType,
     getCategoriesByType,
@@ -19,13 +22,12 @@ import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
-import { AppInput } from "@/components/ui/app-input";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 type FilterType = "all" | "income" | "expense";
 
 export default function HistoryScreen() {
     const session = useAuthStore((state) => state.session);
+    const { showToast } = useToast();
 
     const now = new Date();
 
@@ -36,13 +38,11 @@ export default function HistoryScreen() {
     const [categoryFilter, setCategoryFilter] = useState<string>("");
     const [accountFilter, setAccountFilter] = useState<string>("");
 
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [accounts, setAccounts] = useState<Account[]>([]);
-
     const [searchText, setSearchText] = useState("");
     const debouncedSearchText = useDebouncedValue(searchText, 350);
 
-    const { showToast } = useToast();
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
 
     const [items, setItems] = useState<
         Array<{
@@ -53,6 +53,7 @@ export default function HistoryScreen() {
             transactionDate: string;
             categoryName: string;
             accountName: string;
+            syncStatus: string;
         }>
     >([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -141,6 +142,14 @@ export default function HistoryScreen() {
         }
 
         setSelectedMonth((prev) => prev + 1);
+    };
+
+    const handleClearFilters = () => {
+        setTypeFilter("all");
+        setCategoryFilter("");
+        setAccountFilter("");
+        setSearchText("");
+        showToast("Filtros limpiados", "info");
     };
 
     const filterChipStyle = (isSelected: boolean) => ({
@@ -340,6 +349,7 @@ export default function HistoryScreen() {
                             flexDirection: "row",
                             flexWrap: "wrap",
                             gap: spacing.sm,
+                            marginBottom: spacing.md,
                         }}
                     >
                         <TouchableOpacity
@@ -361,6 +371,30 @@ export default function HistoryScreen() {
                             </TouchableOpacity>
                         ))}
                     </View>
+
+                    <TouchableOpacity
+                        onPress={handleClearFilters}
+                        activeOpacity={0.85}
+                        style={{
+                            alignSelf: "flex-start",
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            borderRadius: 999,
+                            backgroundColor: colors.surfaceMuted,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: colors.textMuted,
+                                fontSize: typography.bodySm,
+                                fontWeight: typography.weightSemibold,
+                            }}
+                        >
+                            Limpiar filtros
+                        </Text>
+                    </TouchableOpacity>
                 </AppCard>
 
                 {isLoading ? (
@@ -393,8 +427,7 @@ export default function HistoryScreen() {
                                 lineHeight: 22,
                             }}
                         >
-                            Prueba cambiando el mes o ajustando los filtros para ver más
-                            resultados.
+                            Prueba cambiando el mes o ajustando los filtros para ver más resultados.
                         </Text>
                     </AppCard>
                 ) : (
@@ -433,10 +466,13 @@ export default function HistoryScreen() {
                                                     style={{
                                                         fontSize: typography.bodySm,
                                                         color: colors.textMuted,
+                                                        marginBottom: spacing.sm,
                                                     }}
                                                 >
                                                     {item.categoryName} · {item.accountName}
                                                 </Text>
+
+                                                <SyncStatusBadge status={item.syncStatus} />
                                             </View>
 
                                             <View
@@ -487,6 +523,6 @@ export default function HistoryScreen() {
                     </View>
                 )}
             </View>
-        </FormScreenContainer >
+        </FormScreenContainer>
     );
 }
