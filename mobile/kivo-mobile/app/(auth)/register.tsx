@@ -6,19 +6,19 @@ import { Keyboard, Text, TextInput, TouchableOpacity, View } from "react-native"
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppButton } from "@/components/ui/app-button";
+import { AppCard } from "@/components/ui/app-card";
 import { AppInput } from "@/components/ui/app-input";
 import {
     RegisterFormValues,
     registerSchema,
 } from "@/features/auth/auth.schemas";
 import { colors } from "@/theme/colors";
+import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 /**
- * Pantalla de registro del MVP.
- * Mejora la experiencia móvil con:
- * - navegación secuencial entre campos
- * - submit desde teclado en el último input
- * - cierre del teclado al enviar
+ * Pantalla de registro.
+ * Mantiene el mismo lenguaje visual del login para consistencia de UX.
  */
 export default function RegisterScreen() {
     const emailInputRef = useRef<TextInput | null>(null);
@@ -50,16 +50,37 @@ export default function RegisterScreen() {
                 style={{
                     flex: 1,
                     justifyContent: "center",
-                    paddingVertical: 12,
+                    paddingVertical: spacing.lg,
                 }}
             >
-                <View style={{ marginBottom: 28 }}>
+                <View style={{ marginBottom: spacing["3xl"] }}>
+                    <View
+                        style={{
+                            alignSelf: "flex-start",
+                            backgroundColor: colors.accentSoft,
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 999,
+                            marginBottom: spacing.lg,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: colors.accent,
+                                fontSize: typography.bodySm,
+                                fontWeight: typography.weightSemibold,
+                            }}
+                        >
+                            Comienza hoy
+                        </Text>
+                    </View>
+
                     <Text
                         style={{
-                            fontSize: 28,
-                            fontWeight: "700",
+                            fontSize: typography.titlePage,
+                            fontWeight: typography.weightBold,
                             color: colors.text,
-                            marginBottom: 8,
+                            marginBottom: spacing.sm,
                         }}
                     >
                         Crear cuenta
@@ -67,24 +88,17 @@ export default function RegisterScreen() {
 
                     <Text
                         style={{
-                            fontSize: 16,
+                            fontSize: typography.bodyLg,
                             lineHeight: 24,
                             color: colors.textMuted,
+                            maxWidth: 320,
                         }}
                     >
-                        Comienza a usar Kivo para registrar tu dinero en movimiento.
+                        Empieza a registrar tu dinero de forma simple, clara y bonita.
                     </Text>
                 </View>
 
-                <View
-                    style={{
-                        backgroundColor: colors.surface,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        borderRadius: 20,
-                        padding: 18,
-                    }}
-                >
+                <AppCard>
                     <Controller
                         control={control}
                         name="name"
@@ -137,7 +151,9 @@ export default function RegisterScreen() {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 returnKeyType="next"
-                                onSubmitEditing={() => confirmPasswordInputRef.current?.focus()}
+                                onSubmitEditing={() =>
+                                    confirmPasswordInputRef.current?.focus()
+                                }
                                 error={errors.password?.message}
                             />
                         )}
@@ -167,23 +183,31 @@ export default function RegisterScreen() {
                         label={isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
                         onPress={handleSubmit(onSubmit)}
                         disabled={isSubmitting}
-                        style={{ marginTop: 8 }}
+                        style={{ marginTop: spacing.sm }}
                     />
-                </View>
+                </AppCard>
 
                 <TouchableOpacity
                     onPress={() => router.replace("/login")}
-                    style={{ marginTop: 18 }}
+                    style={{ marginTop: spacing.xl }}
                     activeOpacity={0.8}
                 >
                     <Text
                         style={{
                             color: colors.textMuted,
                             textAlign: "center",
-                            fontSize: 15,
+                            fontSize: typography.bodyMd,
                         }}
                     >
-                        Volver al inicio de sesión
+                        ¿Ya tienes cuenta?{" "}
+                        <Text
+                            style={{
+                                color: colors.primary,
+                                fontWeight: typography.weightSemibold,
+                            }}
+                        >
+                            Inicia sesión
+                        </Text>
                     </Text>
                 </TouchableOpacity>
             </View>

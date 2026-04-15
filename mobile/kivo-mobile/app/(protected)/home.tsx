@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
+import { AppCard } from "@/components/ui/app-card";
 import { BRAND } from "@/constants/brand";
 import {
     getDashboardSummary,
@@ -10,12 +11,14 @@ import {
 } from "@/features/dashboard/dashboard.service";
 import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
+import { spacing } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 
 /**
- * Dashboard inicial del MVP.
- * Lee datos reales desde SQLite aunque todavía no existan movimientos.
+ * Home/dashboard inicial de Kivo.
+ * Busca verse más amigable, con mejor jerarquía y bloques más visuales.
  */
-export default function DashboardScreen() {
+export default function HomeScreen() {
     const session = useAuthStore((state) => state.session);
     const logout = useAuthStore((state) => state.logout);
 
@@ -63,146 +66,244 @@ export default function DashboardScreen() {
 
     return (
         <FormScreenContainer>
-            <View style={{ flex: 1, justifyContent: "center" }}>
-                <Text
-                    style={{
-                        fontSize: 30,
-                        fontWeight: "700",
-                        color: colors.text,
-                        marginBottom: 8,
-                    }}
-                >
-                    Bienvenido a {BRAND.appName}
-                </Text>
+            <View style={{ flex: 1, paddingVertical: spacing.lg }}>
+                <View style={{ marginBottom: spacing["2xl"] }}>
+                    <Text
+                        style={{
+                            fontSize: typography.bodyMd,
+                            color: colors.textMuted,
+                            marginBottom: spacing.xs,
+                        }}
+                    >
+                        Hola, {session?.user.name ?? "Usuario"}
+                    </Text>
 
-                <Text
-                    style={{
-                        fontSize: 16,
-                        color: colors.textMuted,
-                        marginBottom: 32,
-                    }}
-                >
-                    Dashboard local listo.
-                </Text>
+                    <Text
+                        style={{
+                            fontSize: typography.titlePage,
+                            fontWeight: typography.weightBold,
+                            color: colors.text,
+                            marginBottom: spacing.sm,
+                        }}
+                    >
+                        Bienvenido a {BRAND.appName}
+                    </Text>
+
+                    <Text
+                        style={{
+                            fontSize: typography.bodyLg,
+                            lineHeight: 24,
+                            color: colors.textMuted,
+                        }}
+                    >
+                        Tu resumen financiero del mes, en un solo lugar.
+                    </Text>
+                </View>
 
                 {isLoading ? (
-                    <ActivityIndicator size="large" color={colors.primary} />
-                ) : (
                     <View
                         style={{
-                            backgroundColor: colors.surface,
-                            borderWidth: 1,
-                            borderColor: colors.border,
-                            borderRadius: 16,
-                            padding: 16,
-                            marginBottom: 24,
-                            gap: 12,
+                            flex: 1,
+                            justifyContent: "center",
+                            alignItems: "center",
                         }}
                     >
-                        <Text style={{ fontSize: 16, color: colors.text }}>
-                            Ingresos del mes: ${summary.totalIncome.toFixed(2)}
-                        </Text>
-
-                        <Text style={{ fontSize: 16, color: colors.text }}>
-                            Egresos del mes: ${summary.totalExpense.toFixed(2)}
-                        </Text>
-
-                        <Text style={{ fontSize: 16, color: colors.text }}>
-                            Saldo del mes: ${summary.balance.toFixed(2)}
-                        </Text>
-
-                        <Text style={{ fontSize: 16, color: colors.text }}>
-                            Movimientos del mes: {summary.transactionCount}
-                        </Text>
+                        <ActivityIndicator size="large" color={colors.primary} />
                     </View>
+                ) : (
+                    <>
+                        <AppCard
+                            style={{
+                                marginBottom: spacing.lg,
+                                backgroundColor: colors.primary,
+                                borderColor: colors.primary,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    color: colors.white,
+                                    fontSize: typography.bodyMd,
+                                    marginBottom: spacing.sm,
+                                }}
+                            >
+                                Saldo del mes
+                            </Text>
+
+                            <Text
+                                style={{
+                                    color: colors.white,
+                                    fontSize: 32,
+                                    fontWeight: typography.weightBold,
+                                    marginBottom: spacing.sm,
+                                }}
+                            >
+                                ${summary.balance.toFixed(2)}
+                            </Text>
+
+                            <Text
+                                style={{
+                                    color: "rgba(255,255,255,0.85)",
+                                    fontSize: typography.bodySm,
+                                }}
+                            >
+                                Movimientos registrados: {summary.transactionCount}
+                            </Text>
+                        </AppCard>
+
+                        <View
+                            style={{
+                                flexDirection: "row",
+                                gap: spacing.md,
+                                marginBottom: spacing.lg,
+                            }}
+                        >
+                            <AppCard style={{ flex: 1 }}>
+                                <Text
+                                    style={{
+                                        color: colors.textMuted,
+                                        fontSize: typography.bodySm,
+                                        marginBottom: spacing.xs,
+                                    }}
+                                >
+                                    Ingresos
+                                </Text>
+
+                                <Text
+                                    style={{
+                                        color: colors.success,
+                                        fontSize: typography.titleSection,
+                                        fontWeight: typography.weightBold,
+                                    }}
+                                >
+                                    ${summary.totalIncome.toFixed(2)}
+                                </Text>
+                            </AppCard>
+
+                            <AppCard style={{ flex: 1 }}>
+                                <Text
+                                    style={{
+                                        color: colors.textMuted,
+                                        fontSize: typography.bodySm,
+                                        marginBottom: spacing.xs,
+                                    }}
+                                >
+                                    Egresos
+                                </Text>
+
+                                <Text
+                                    style={{
+                                        color: colors.danger,
+                                        fontSize: typography.titleSection,
+                                        fontWeight: typography.weightBold,
+                                    }}
+                                >
+                                    ${summary.totalExpense.toFixed(2)}
+                                </Text>
+                            </AppCard>
+                        </View>
+
+                        <AppCard style={{ marginBottom: spacing.lg }}>
+                            <Text
+                                style={{
+                                    fontSize: typography.titleSection,
+                                    fontWeight: typography.weightBold,
+                                    color: colors.text,
+                                    marginBottom: spacing.md,
+                                }}
+                            >
+                                Acciones rápidas
+                            </Text>
+
+                            <TouchableOpacity
+                                onPress={() => router.push("/add-transaction")}
+                                activeOpacity={0.85}
+                                style={{
+                                    backgroundColor: colors.primary,
+                                    paddingVertical: 15,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 16,
+                                    marginBottom: spacing.md,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: colors.white,
+                                        textAlign: "center",
+                                        fontSize: typography.bodyLg,
+                                        fontWeight: typography.weightSemibold,
+                                    }}
+                                >
+                                    Agregar movimiento
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => router.push("/history")}
+                                activeOpacity={0.85}
+                                style={{
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    backgroundColor: colors.white,
+                                    paddingVertical: 15,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 16,
+                                    marginBottom: spacing.md,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: colors.text,
+                                        textAlign: "center",
+                                        fontSize: typography.bodyLg,
+                                        fontWeight: typography.weightSemibold,
+                                    }}
+                                >
+                                    Ver historial
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={() => router.push("/settings")}
+                                activeOpacity={0.85}
+                                style={{
+                                    borderWidth: 1,
+                                    borderColor: colors.border,
+                                    backgroundColor: colors.white,
+                                    paddingVertical: 15,
+                                    paddingHorizontal: 16,
+                                    borderRadius: 16,
+                                }}
+                            >
+                                <Text
+                                    style={{
+                                        color: colors.text,
+                                        textAlign: "center",
+                                        fontSize: typography.bodyLg,
+                                        fontWeight: typography.weightSemibold,
+                                    }}
+                                >
+                                    Configuración
+                                </Text>
+                            </TouchableOpacity>
+                        </AppCard>
+
+                        <TouchableOpacity
+                            onPress={handleLogout}
+                            activeOpacity={0.8}
+                            style={{ marginTop: spacing.sm }}
+                        >
+                            <Text
+                                style={{
+                                    color: colors.textMuted,
+                                    textAlign: "center",
+                                    fontSize: typography.bodyMd,
+                                }}
+                            >
+                                Cerrar sesión
+                            </Text>
+                        </TouchableOpacity>
+                    </>
                 )}
-                <TouchableOpacity
-                    onPress={() => router.push("/add-transaction")}
-                    style={{
-                        backgroundColor: colors.primary,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        borderRadius: 12,
-                        marginBottom: 12,
-                    }}
-                >
-                    <Text
-                        style={{
-                            color: "#FFFFFF",
-                            textAlign: "center",
-                            fontSize: 16,
-                            fontWeight: "600",
-                        }}
-                    >
-                        Agregar movimiento
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => router.push("/history")}
-                    style={{
-                        backgroundColor: colors.primary,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        borderRadius: 12,
-                        marginBottom: 12,
-                    }}
-                >
-                    <Text
-                        style={{
-                            color: "#FFFFFF",
-                            textAlign: "center",
-                            fontSize: 16,
-                            fontWeight: "600",
-                        }}
-                    >
-                        Ir a historial
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => router.push("/settings")}
-                    style={{
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        borderRadius: 12,
-                        marginBottom: 12,
-                    }}
-                >
-                    <Text
-                        style={{
-                            color: colors.text,
-                            textAlign: "center",
-                            fontSize: 16,
-                            fontWeight: "600",
-                        }}
-                    >
-                        Ir a configuración
-                    </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={handleLogout}
-                    style={{
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        paddingVertical: 14,
-                        paddingHorizontal: 16,
-                        borderRadius: 12,
-                    }}
-                >
-                    <Text
-                        style={{
-                            color: colors.text,
-                            textAlign: "center",
-                            fontSize: 16,
-                            fontWeight: "600",
-                        }}
-                    >
-                        Cerrar sesión
-                    </Text>
-                </TouchableOpacity>
             </View>
         </FormScreenContainer>
     );
