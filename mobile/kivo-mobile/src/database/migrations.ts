@@ -20,10 +20,10 @@ export async function initializeDatabase(): Promise<void> {
       updated_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS payment_methods (
+    CREATE TABLE IF NOT EXISTS accounts (
       id TEXT PRIMARY KEY NOT NULL,
       name TEXT NOT NULL,
-      type TEXT,
+      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'both')),
       is_default INTEGER NOT NULL DEFAULT 1,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
@@ -37,7 +37,7 @@ export async function initializeDatabase(): Promise<void> {
       type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
       amount REAL NOT NULL CHECK (amount > 0),
       category_id TEXT NOT NULL,
-      payment_method_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
       concept TEXT,
       budget_amount REAL,
       note TEXT,
@@ -126,15 +126,16 @@ async function seedBaseCatalogs(): Promise<void> {
     );
   }
 
-  const existingPaymentMethods = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM payment_methods`
+  const existingAccounts = await db.getFirstAsync<{ count: number }>(
+    `SELECT COUNT(*) as count FROM accounts`
   );
 
-  if ((existingPaymentMethods?.count ?? 0) === 0) {
+  if ((existingAccounts?.count ?? 0) === 0) {
     await db.runAsync(
       `
-        INSERT INTO payment_methods (id, name, type, is_default, is_active, created_at, updated_at)
+        INSERT INTO accounts (id, name, type, is_default, is_active, created_at, updated_at)
         VALUES
+          (?, ?, ?, 1, 1, ?, ?),
           (?, ?, ?, 1, 1, ?, ?),
           (?, ?, ?, 1, 1, ?, ?),
           (?, ?, ?, 1, 1, ?, ?),
@@ -142,33 +143,39 @@ async function seedBaseCatalogs(): Promise<void> {
           (?, ?, ?, 1, 1, ?, ?)
       `,
       [
-        "pm-cash",
+        "acc-cash",
         "Efectivo",
-        "cash",
+        "both",
         now,
         now,
 
-        "pm-bbva-credit",
+        "acc-bbva-credit",
         "TDC BBVA",
-        "credit_card",
+        "expense",
         now,
         now,
 
-        "pm-didi-credit",
+        "acc-didi-credit",
         "TDC DiDi",
-        "credit_card",
+        "expense",
         now,
         now,
 
-        "pm-debit",
+        "acc-debit",
         "Débito",
-        "debit_card",
+        "both",
         now,
         now,
 
-        "pm-transfer",
+        "acc-transfer",
         "Transferencia",
-        "bank_transfer",
+        "both",
+        now,
+        now,
+
+        "acc-payroll",
+        "Nómina",
+        "income",
         now,
         now,
       ]

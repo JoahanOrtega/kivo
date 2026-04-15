@@ -15,8 +15,8 @@ import { AppButton } from "@/components/ui/app-button";
 import { AppCard } from "@/components/ui/app-card";
 import { AppInput } from "@/components/ui/app-input";
 import {
+    getAccountsByTransactionType,
     getCategoriesByType,
-    getPaymentMethods,
 } from "@/features/transactions/transaction-catalogs.service";
 import {
     transactionSchema,
@@ -27,13 +27,13 @@ import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import type { Category, PaymentMethod } from "@/types/catalogs";
+import type { Account, Category } from "@/types/catalogs";
 
 export default function AddTransactionScreen() {
     const session = useAuthStore((state) => state.session);
 
     const [categories, setCategories] = useState<Category[]>([]);
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
 
     const {
@@ -47,7 +47,7 @@ export default function AddTransactionScreen() {
             type: "expense",
             amount: "",
             categoryId: "",
-            paymentMethodId: "",
+            accountId: "",
             concept: "",
             note: "",
         },
@@ -63,16 +63,16 @@ export default function AddTransactionScreen() {
             try {
                 setIsLoadingCatalogs(true);
 
-                const [loadedCategories, loadedPaymentMethods] = await Promise.all([
+                const [loadedCategories, loadedAccounts] = await Promise.all([
                     getCategoriesByType(selectedType),
-                    getPaymentMethods(),
+                    getAccountsByTransactionType(selectedType),
                 ]);
 
                 setCategories(loadedCategories);
-                setPaymentMethods(loadedPaymentMethods);
+                setAccounts(loadedAccounts);
 
                 setValue("categoryId", loadedCategories[0]?.id ?? "");
-                setValue("paymentMethodId", loadedPaymentMethods[0]?.id ?? "");
+                setValue("accountId", loadedAccounts[0]?.id ?? "");
             } finally {
                 setIsLoadingCatalogs(false);
             }
@@ -93,7 +93,7 @@ export default function AddTransactionScreen() {
             type: values.type,
             amount: Number(values.amount),
             categoryId: values.categoryId,
-            paymentMethodId: values.paymentMethodId,
+            accountId: values.accountId,
             concept: values.concept?.trim() || null,
             note: values.note?.trim() || null,
             transactionDate: new Date().toISOString(),
@@ -340,24 +340,36 @@ export default function AddTransactionScreen() {
                                     fontSize: typography.titleSection,
                                     fontWeight: typography.weightBold,
                                     color: colors.text,
+                                    marginBottom: spacing.xs,
+                                }}
+                            >
+                                Cuenta
+                            </Text>
+
+                            <Text
+                                style={{
+                                    fontSize: typography.bodySm,
+                                    color: colors.textMuted,
                                     marginBottom: spacing.md,
                                 }}
                             >
-                                Método de pago
+                                {selectedType === "expense"
+                                    ? "Selecciona desde dónde salió el dinero."
+                                    : "Selecciona a dónde entró el dinero."}
                             </Text>
 
                             <Controller
                                 control={control}
-                                name="paymentMethodId"
+                                name="accountId"
                                 render={({ field: { value, onChange } }) => (
                                     <View style={{ gap: spacing.sm }}>
-                                        {paymentMethods.map((method) => {
-                                            const isSelected = value === method.id;
+                                        {accounts.map((account) => {
+                                            const isSelected = value === account.id;
 
                                             return (
                                                 <TouchableOpacity
-                                                    key={method.id}
-                                                    onPress={() => onChange(method.id)}
+                                                    key={account.id}
+                                                    onPress={() => onChange(account.id)}
                                                     activeOpacity={0.85}
                                                     style={{
                                                         paddingVertical: 15,
@@ -379,7 +391,7 @@ export default function AddTransactionScreen() {
                                                             fontSize: typography.bodyLg,
                                                         }}
                                                     >
-                                                        {method.name}
+                                                        {account.name}
                                                     </Text>
                                                 </TouchableOpacity>
                                             );
@@ -388,7 +400,7 @@ export default function AddTransactionScreen() {
                                 )}
                             />
 
-                            {errors.paymentMethodId?.message ? (
+                            {errors.accountId?.message ? (
                                 <Text
                                     style={{
                                         marginTop: spacing.sm,
@@ -396,7 +408,7 @@ export default function AddTransactionScreen() {
                                         color: colors.danger,
                                     }}
                                 >
-                                    {errors.paymentMethodId.message}
+                                    {errors.accountId.message}
                                 </Text>
                             ) : null}
                         </AppCard>

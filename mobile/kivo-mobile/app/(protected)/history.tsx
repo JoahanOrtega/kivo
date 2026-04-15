@@ -24,7 +24,7 @@ export default function HistoryScreen() {
             concept: string | null;
             transactionDate: string;
             categoryName: string;
-            paymentMethodName: string;
+            accountName: string;
         }>
     >([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -142,7 +142,7 @@ export default function HistoryScreen() {
                                                     color: colors.textMuted,
                                                 }}
                                             >
-                                                {item.categoryName} · {item.paymentMethodName}
+                                                {item.categoryName} · {item.accountName}
                                             </Text>
                                         </View>
 
