@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
-import { PeriodSelector } from "@/components/ui/period-selector";
+import { HomeHeader } from "@/components/home/home-header";
 
 // ─── Componentes del home ─────────────────────────────────────────────────────
 // Cada uno vive en su propio archivo y tiene una responsabilidad clara.
@@ -23,7 +23,6 @@ import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { BRAND } from "@/constants/brand";
 
 // ─── Estado inicial del dashboard ────────────────────────────────────────────
 // Definimos los valores por defecto fuera del componente para que no se
@@ -210,46 +209,13 @@ export default function HomeScreen() {
         <FormScreenContainer>
             <View style={{ flex: 1, paddingVertical: spacing.lg }}>
 
-                {/* ── Header ── */}
-                <View style={{ marginBottom: spacing["2xl"] }}>
-                    <Text
-                        style={{
-                            fontSize: typography.bodyMd,
-                            color: colors.textMuted,
-                            marginBottom: spacing.xs,
-                        }}
-                    >
-                        Hola, {session?.user.name ?? "Usuario"}
-                    </Text>
-
-                    <Text
-                        style={{
-                            fontSize: typography.titlePage,
-                            fontWeight: typography.weightBold,
-                            color: colors.text,
-                            marginBottom: spacing.sm,
-                        }}
-                    >
-                        Bienvenido a {BRAND.appName}
-                    </Text>
-
-                    <Text
-                        style={{
-                            fontSize: typography.bodyLg,
-                            lineHeight: 24,
-                            color: colors.textMuted,
-                        }}
-                    >
-                        Tu resumen financiero del mes, en un solo lugar.
-                    </Text>
-                </View>
-
-                {/* ── Selector de período ── */}
-                <PeriodSelector
+                {/* ── Header compacto con selector de mes integrado ── */}
+                <HomeHeader
+                    userName={session?.user.name ?? "Usuario"}
                     month={selectedMonth}
                     year={selectedYear}
-                    onPrevious={handlePreviousMonth}
-                    onNext={handleNextMonth}
+                    onPreviousMonth={handlePreviousMonth}
+                    onNextMonth={handleNextMonth}
                     onGoToCurrentMonth={handleSelectCurrentMonth}
                 />
 
