@@ -1,9 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { useToast } from "@/components/ui/toast-provider";
+import { useForm, useWatch } from "react-hook-form";
 import * as Haptics from "expo-haptics";
-import { Controller, useForm, useWatch } from "react-hook-form";
 import {
     ActivityIndicator,
     Keyboard,
@@ -14,9 +13,13 @@ import {
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppButton } from "@/components/ui/app-button";
-import { AppCard } from "@/components/ui/app-card";
-import { AppInput } from "@/components/ui/app-input";
-import { DateField } from "@/components/ui/date-field";
+import { useToast } from "@/components/ui/toast-provider";
+
+// ─── Componentes del formulario ───────────────────────────────────────────────
+import { CatalogSelector } from "@/components/add-transaction/catalog-selector";
+import { TransactionFields } from "@/components/add-transaction/transaction-fields";
+import { TypeSelector } from "@/components/add-transaction/type-selector";
+
 import {
     getAccountsByTransactionType,
     getCategoriesByType,
@@ -32,15 +35,34 @@ import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
 
+// ─── Helper: fecha local a string YYYY-MM-DD ──────────────────────────────────
+// Resuelve el problema #4 — el valor por defecto del formulario
+// debe ser la fecha de hoy en formato "YYYY-MM-DD", no ISO string.
+// toISOString() usa UTC y puede mostrar el día anterior en México.
+function getTodayDateString(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    // getMonth() es 0-based, padStart garantiza 2 dígitos
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
 export default function AddTransactionScreen() {
     const session = useAuthStore((state) => state.session);
+    const { showToast } = useToast();
 
+    // ─── Estado: catálogos ────────────────────────────────────────────────────
     const [categories, setCategories] = useState<Category[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
 
-    const { showToast } = useToast();
+    // ─── Estado: error de catálogos ───────────────────────────────────────────
+    // Resuelve el problema #3 — si los catálogos fallan, avisamos
+    // al usuario en lugar de mostrar un formulario vacío sin explicación.
+    const [hasCatalogError, setHasCatalogError] = useState(false);
 
+    // ─── Formulario ───────────────────────────────────────────────────────────
     const {
         control,
         handleSubmit,
@@ -51,7 +73,9 @@ export default function AddTransactionScreen() {
         defaultValues: {
             type: "expense",
             amount: "",
-            transactionDate: new Date().toISOString(),
+            // Usamos getTodayDateString() en lugar de toISOString()
+            // para evitar el bug de timezone — resuelve problema #4
+            transactionDate: getTodayDateString(),
             categoryId: "",
             accountId: "",
             concept: "",
@@ -59,15 +83,17 @@ export default function AddTransactionScreen() {
         },
     });
 
-    const selectedType = useWatch({
-        control,
-        name: "type",
-    });
+    // Observamos el tipo seleccionado para recargar catálogos
+    const selectedType = useWatch({ control, name: "type" });
 
+    // ─── Carga de catálogos ───────────────────────────────────────────────────
+    // Se recarga cada vez que el usuario cambia el tipo —
+    // los catálogos de egreso son diferentes a los de ingreso.
     useEffect(() => {
         const loadCatalogs = async () => {
             try {
                 setIsLoadingCatalogs(true);
+                setHasCatalogError(false);
 
                 const [loadedCategories, loadedAccounts] = await Promise.all([
                     getCategoriesByType(selectedType),
@@ -77,8 +103,14 @@ export default function AddTransactionScreen() {
                 setCategories(loadedCategories);
                 setAccounts(loadedAccounts);
 
+                // Preseleccionamos el primer item de cada catálogo
+                // para que el formulario siempre tenga un valor válido
                 setValue("categoryId", loadedCategories[0]?.id ?? "");
                 setValue("accountId", loadedAccounts[0]?.id ?? "");
+            } catch {
+                // Activamos el estado de error para mostrar feedback
+                setHasCatalogError(true);
+                showToast("No se pudieron cargar las opciones", "error");
             } finally {
                 setIsLoadingCatalogs(false);
             }
@@ -87,10 +119,9 @@ export default function AddTransactionScreen() {
         void loadCatalogs();
     }, [selectedType, setValue]);
 
+    // ─── Submit ───────────────────────────────────────────────────────────────
     const onSubmit = async (values: TransactionFormValues) => {
-        if (!session?.user.id) {
-            return;
-        }
+        if (!session?.user.id) return;
 
         try {
             Keyboard.dismiss();
@@ -106,9 +137,6 @@ export default function AddTransactionScreen() {
                 transactionDate: values.transactionDate,
             });
 
-            // Feedback háptico de éxito — le confirma al usuario que
-            // la acción se completó sin que tenga que leer el toast.
-            // Success usa un patrón de vibración positivo del sistema operativo.
             await Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success
             );
@@ -118,8 +146,6 @@ export default function AddTransactionScreen() {
         } catch (error) {
             console.error(error);
 
-            // Feedback háptico de error — vibración más intensa que indica
-            // que algo salió mal. El usuario lo siente antes de leer el mensaje.
             await Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Error
             );
@@ -128,9 +154,90 @@ export default function AddTransactionScreen() {
         }
     };
 
+    // ─── Render: estado de carga ──────────────────────────────────────────────
+    if (isLoadingCatalogs) {
+        return (
+            <FormScreenContainer>
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}
+                >
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            </FormScreenContainer>
+        );
+    }
+
+    // ─── Render: error de catálogos ───────────────────────────────────────────
+    if (hasCatalogError) {
+        return (
+            <FormScreenContainer>
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        paddingHorizontal: spacing["2xl"],
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: typography.bodyLg,
+                            fontWeight: typography.weightSemibold,
+                            color: colors.text,
+                            textAlign: "center",
+                            marginBottom: spacing.sm,
+                        }}
+                    >
+                        No se pudieron cargar las opciones
+                    </Text>
+
+                    <Text
+                        style={{
+                            fontSize: typography.bodyMd,
+                            color: colors.textMuted,
+                            textAlign: "center",
+                            marginBottom: spacing.xl,
+                            lineHeight: 22,
+                        }}
+                    >
+                        Revisa tu conexión e intenta de nuevo.
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={() => setHasCatalogError(false)}
+                        activeOpacity={0.85}
+                        style={{
+                            backgroundColor: colors.primary,
+                            paddingVertical: 12,
+                            paddingHorizontal: spacing["2xl"],
+                            borderRadius: 12,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: colors.white,
+                                fontSize: typography.bodyMd,
+                                fontWeight: typography.weightSemibold,
+                            }}
+                        >
+                            Reintentar
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </FormScreenContainer>
+        );
+    }
+
+    // ─── Render: formulario ───────────────────────────────────────────────────
     return (
         <FormScreenContainer>
             <View style={{ flex: 1, paddingVertical: spacing.lg }}>
+
+                {/* ── Header ── */}
                 <View style={{ marginBottom: spacing["2xl"] }}>
                     <Text
                         style={{
@@ -154,311 +261,47 @@ export default function AddTransactionScreen() {
                     </Text>
                 </View>
 
-                {isLoadingCatalogs ? (
-                    <View
-                        style={{
-                            flex: 1,
-                            justifyContent: "center",
-                            alignItems: "center",
-                        }}
-                    >
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : (
-                    <>
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                Tipo de movimiento
-                            </Text>
+                {/* ── Selector de tipo ── */}
+                <TypeSelector
+                    value={selectedType}
+                    onChange={(type) => setValue("type", type)}
+                />
 
-                            <Controller
-                                control={control}
-                                name="type"
-                                render={({ field: { value, onChange } }) => (
-                                    <View style={{ flexDirection: "row", gap: spacing.md }}>
-                                        <TouchableOpacity
-                                            onPress={() => onChange("expense")}
-                                            activeOpacity={0.85}
-                                            style={{
-                                                flex: 1,
-                                                paddingVertical: 16,
-                                                borderRadius: 16,
-                                                borderWidth: 1,
-                                                borderColor:
-                                                    value === "expense" ? colors.danger : colors.border,
-                                                backgroundColor:
-                                                    value === "expense"
-                                                        ? colors.dangerSoft
-                                                        : colors.white,
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    textAlign: "center",
-                                                    color:
-                                                        value === "expense" ? colors.danger : colors.text,
-                                                    fontWeight: typography.weightSemibold,
-                                                    fontSize: typography.bodyLg,
-                                                }}
-                                            >
-                                                Egreso
-                                            </Text>
-                                        </TouchableOpacity>
+                {/* ── Campos del formulario ── */}
+                <TransactionFields
+                    control={control}
+                    errors={errors}
+                />
 
-                                        <TouchableOpacity
-                                            onPress={() => onChange("income")}
-                                            activeOpacity={0.85}
-                                            style={{
-                                                flex: 1,
-                                                paddingVertical: 16,
-                                                borderRadius: 16,
-                                                borderWidth: 1,
-                                                borderColor:
-                                                    value === "income" ? colors.success : colors.border,
-                                                backgroundColor:
-                                                    value === "income"
-                                                        ? colors.successSoft
-                                                        : colors.white,
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    textAlign: "center",
-                                                    color:
-                                                        value === "income" ? colors.success : colors.text,
-                                                    fontWeight: typography.weightSemibold,
-                                                    fontSize: typography.bodyLg,
-                                                }}
-                                            >
-                                                Ingreso
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            />
-                        </AppCard>
+                {/* ── Selector de categoría ── */}
+                <CatalogSelector
+                    title="Categoría"
+                    options={categories}
+                    selectedId={control._formValues.categoryId}
+                    onChange={(id) => setValue("categoryId", id)}
+                    error={errors.categoryId?.message}
+                />
 
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Controller
-                                control={control}
-                                name="amount"
-                                render={({ field: { value, onChange } }) => (
-                                    <AppInput
-                                        label="Monto"
-                                        value={value}
-                                        onChangeText={onChange}
-                                        placeholder="0.00"
-                                        keyboardType="numeric"
-                                        error={errors.amount?.message}
-                                        inputStyle={{
-                                            fontSize: 28,
-                                            fontWeight: typography.weightBold,
-                                            paddingVertical: 18,
-                                        }}
-                                    />
-                                )}
-                            />
+                {/* ── Selector de cuenta ── */}
+                <CatalogSelector
+                    title="Cuenta"
+                    description={
+                        selectedType === "expense"
+                            ? "Selecciona desde dónde salió el dinero."
+                            : "Selecciona a dónde entró el dinero."
+                    }
+                    options={accounts}
+                    selectedId={control._formValues.accountId}
+                    onChange={(id) => setValue("accountId", id)}
+                    error={errors.accountId?.message}
+                />
 
-                            <Controller
-                                control={control}
-                                name="transactionDate"
-                                render={({ field: { value, onChange } }) => (
-                                    <DateField
-                                        label="Fecha"
-                                        value={value}
-                                        onChange={onChange}
-                                        error={errors.transactionDate?.message}
-                                    />
-                                )}
-                            />
-
-                            <Controller
-                                control={control}
-                                name="concept"
-                                render={({ field: { value, onChange } }) => (
-                                    <AppInput
-                                        label="Concepto"
-                                        value={value ?? ""}
-                                        onChangeText={onChange}
-                                        placeholder="Ej. DiDi, Nómina, Apple bill"
-                                    />
-                                )}
-                            />
-
-                            <Controller
-                                control={control}
-                                name="note"
-                                render={({ field: { value, onChange } }) => (
-                                    <AppInput
-                                        label="Nota"
-                                        value={value ?? ""}
-                                        onChangeText={onChange}
-                                        placeholder="Opcional"
-                                    />
-                                )}
-                            />
-                        </AppCard>
-
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                Categoría
-                            </Text>
-
-                            <Controller
-                                control={control}
-                                name="categoryId"
-                                render={({ field: { value, onChange } }) => (
-                                    <View style={{ gap: spacing.sm }}>
-                                        {categories.map((category) => {
-                                            const isSelected = value === category.id;
-
-                                            return (
-                                                <TouchableOpacity
-                                                    key={category.id}
-                                                    onPress={() => onChange(category.id)}
-                                                    activeOpacity={0.85}
-                                                    style={{
-                                                        paddingVertical: 15,
-                                                        paddingHorizontal: 14,
-                                                        borderRadius: 16,
-                                                        borderWidth: 1,
-                                                        borderColor: isSelected
-                                                            ? colors.primary
-                                                            : colors.border,
-                                                        backgroundColor: isSelected
-                                                            ? colors.primarySoft
-                                                            : colors.white,
-                                                    }}
-                                                >
-                                                    <Text
-                                                        style={{
-                                                            color: isSelected ? colors.primary : colors.text,
-                                                            fontWeight: typography.weightSemibold,
-                                                            fontSize: typography.bodyLg,
-                                                        }}
-                                                    >
-                                                        {category.name}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-                                )}
-                            />
-
-                            {errors.categoryId?.message ? (
-                                <Text
-                                    style={{
-                                        marginTop: spacing.sm,
-                                        fontSize: typography.caption,
-                                        color: colors.danger,
-                                    }}
-                                >
-                                    {errors.categoryId.message}
-                                </Text>
-                            ) : null}
-                        </AppCard>
-
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.xs,
-                                }}
-                            >
-                                Cuenta
-                            </Text>
-
-                            <Text
-                                style={{
-                                    fontSize: typography.bodySm,
-                                    color: colors.textMuted,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                {selectedType === "expense"
-                                    ? "Selecciona desde dónde salió el dinero."
-                                    : "Selecciona a dónde entró el dinero."}
-                            </Text>
-
-                            <Controller
-                                control={control}
-                                name="accountId"
-                                render={({ field: { value, onChange } }) => (
-                                    <View style={{ gap: spacing.sm }}>
-                                        {accounts.map((account) => {
-                                            const isSelected = value === account.id;
-
-                                            return (
-                                                <TouchableOpacity
-                                                    key={account.id}
-                                                    onPress={() => onChange(account.id)}
-                                                    activeOpacity={0.85}
-                                                    style={{
-                                                        paddingVertical: 15,
-                                                        paddingHorizontal: 14,
-                                                        borderRadius: 16,
-                                                        borderWidth: 1,
-                                                        borderColor: isSelected
-                                                            ? colors.primary
-                                                            : colors.border,
-                                                        backgroundColor: isSelected
-                                                            ? colors.primarySoft
-                                                            : colors.white,
-                                                    }}
-                                                >
-                                                    <Text
-                                                        style={{
-                                                            color: isSelected ? colors.primary : colors.text,
-                                                            fontWeight: typography.weightSemibold,
-                                                            fontSize: typography.bodyLg,
-                                                        }}
-                                                    >
-                                                        {account.name}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-                                )}
-                            />
-
-                            {errors.accountId?.message ? (
-                                <Text
-                                    style={{
-                                        marginTop: spacing.sm,
-                                        fontSize: typography.caption,
-                                        color: colors.danger,
-                                    }}
-                                >
-                                    {errors.accountId.message}
-                                </Text>
-                            ) : null}
-                        </AppCard>
-
-                        <AppButton
-                            label={isSubmitting ? "Guardando..." : "Guardar movimiento"}
-                            onPress={handleSubmit(onSubmit)}
-                            disabled={isSubmitting}
-                        />
-                    </>
-                )}
+                {/* ── Botón guardar ── */}
+                <AppButton
+                    label={isSubmitting ? "Guardando..." : "Guardar movimiento"}
+                    onPress={handleSubmit(onSubmit)}
+                    disabled={isSubmitting}
+                />
             </View>
         </FormScreenContainer>
     );
