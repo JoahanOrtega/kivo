@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+import * as Haptics from "expo-haptics";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import {
     ActivityIndicator,
@@ -133,10 +134,20 @@ export default function EditTransactionScreen() {
                 transactionDate: values.transactionDate,
             });
 
+            // Éxito — mismo patrón que en add-transaction
+            await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+            );
+
             showToast("Movimiento actualizado", "success");
             router.back();
         } catch (error) {
             console.error(error);
+
+            await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Error
+            );
+
             showToast("No se pudo actualizar", "error");
         }
     };
@@ -157,10 +168,23 @@ export default function EditTransactionScreen() {
                     onPress: async () => {
                         try {
                             await deleteTransaction(localId);
+
+                            // Warning para eliminar — más intenso que success,
+                            // menos que error. Le comunica al usuario que algo
+                            // importante acaba de ocurrir de forma irreversible.
+                            await Haptics.notificationAsync(
+                                Haptics.NotificationFeedbackType.Warning
+                            );
+
                             showToast("Movimiento eliminado", "success");
                             router.back();
                         } catch (error) {
                             console.error(error);
+
+                            await Haptics.notificationAsync(
+                                Haptics.NotificationFeedbackType.Error
+                            );
+
                             showToast("No se pudo eliminar", "error");
                         }
                     },

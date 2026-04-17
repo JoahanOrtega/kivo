@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/toast-provider";
+import * as Haptics from "expo-haptics";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import {
     ActivityIndicator,
@@ -105,10 +106,24 @@ export default function AddTransactionScreen() {
                 transactionDate: values.transactionDate,
             });
 
+            // Feedback háptico de éxito — le confirma al usuario que
+            // la acción se completó sin que tenga que leer el toast.
+            // Success usa un patrón de vibración positivo del sistema operativo.
+            await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+            );
+
             showToast("Movimiento guardado", "success");
             router.back();
         } catch (error) {
             console.error(error);
+
+            // Feedback háptico de error — vibración más intensa que indica
+            // que algo salió mal. El usuario lo siente antes de leer el mensaje.
+            await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Error
+            );
+
             showToast("No se pudo guardar el movimiento", "error");
         }
     };
