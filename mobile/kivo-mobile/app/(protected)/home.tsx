@@ -3,10 +3,19 @@ import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
-import { AppCard } from "@/components/ui/app-card";
 import { MonthSelector } from "@/components/ui/month-selector";
 import { PeriodChips } from "@/components/ui/period-chips";
-import { BRAND } from "@/constants/brand";
+
+// ─── Componentes del home ─────────────────────────────────────────────────────
+// Cada uno vive en su propio archivo y tiene una responsabilidad clara.
+import { AccountsSummary } from "@/components/home/accounts-summary";
+import { BalanceCard } from "@/components/home/balance-card";
+import { CategoriesSummary } from "@/components/home/categories-summary";
+import { EmptyMonthState } from "@/components/home/empty-month-state";
+import { IncomeExpenseRow } from "@/components/home/income-expense-row";
+import { PendingSyncBanner } from "@/components/home/pending-sync-banner";
+import { QuickActions } from "@/components/home/quick-actions";
+
 import {
     getDashboardSummary,
     type DashboardSummary,
@@ -15,6 +24,21 @@ import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
+import { BRAND } from "@/constants/brand";
+
+// ─── Estado inicial del dashboard ────────────────────────────────────────────
+// Definimos los valores por defecto fuera del componente para que no se
+// recree en cada render. Si están dentro, React crea un objeto nuevo
+// en cada ciclo aunque los valores sean iguales.
+const INITIAL_SUMMARY: DashboardSummary = {
+    totalIncome: 0,
+    totalExpense: 0,
+    balance: 0,
+    transactionCount: 0,
+    pendingSyncCount: 0,
+    categoriesSummary: [],
+    accountsSummary: [],
+};
 
 export default function HomeScreen() {
     const session = useAuthStore((state) => state.session);
@@ -22,20 +46,25 @@ export default function HomeScreen() {
 
     const now = new Date();
 
+    // ─── Estado del período seleccionado ─────────────────────────────────────
+    // El usuario puede navegar entre meses — estos dos estados controlan
+    // qué período se está visualizando en el dashboard.
     const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
-    const [summary, setSummary] = useState<DashboardSummary>({
-        totalIncome: 0,
-        totalExpense: 0,
-        balance: 0,
-        transactionCount: 0,
-        pendingSyncCount: 0,
-        categoriesSummary: [],
-        accountsSummary: [],
-    });
+    // ─── Estado del dashboard ─────────────────────────────────────────────────
+    const [summary, setSummary] = useState<DashboardSummary>(INITIAL_SUMMARY);
     const [isLoading, setIsLoading] = useState(true);
 
+    // ─── Estado de error ──────────────────────────────────────────────────────
+    // Nuevo vs el original — si la carga falla, guardamos el error
+    // para mostrárselo al usuario en lugar de dejar la pantalla vacía.
+    const [hasError, setHasError] = useState(false);
+
+    // ─── Período activo ───────────────────────────────────────────────────────
+    // Calcula si el mes seleccionado es el actual, el anterior, o uno custom.
+    // useMemo evita recalcular esto en cada render — solo recalcula cuando
+    // cambian selectedMonth, selectedYear, o la fecha actual.
     const activePeriodKey = useMemo(() => {
         const currentMonth = now.getMonth() + 1;
         const currentYear = now.getFullYear();
@@ -53,8 +82,11 @@ export default function HomeScreen() {
         }
 
         return "custom" as const;
-    }, [selectedMonth, selectedYear, now]);
+    }, [selectedMonth, selectedYear]);
 
+    // ─── Carga del dashboard ──────────────────────────────────────────────────
+    // useCallback memoriza la función para que useFocusEffect no la recree
+    // en cada render. Solo se recrea cuando cambian sus dependencias.
     const loadDashboard = useCallback(async () => {
         if (!session?.user.id) {
             setIsLoading(false);
@@ -63,6 +95,7 @@ export default function HomeScreen() {
 
         try {
             setIsLoading(true);
+            setHasError(false);
 
             const result = await getDashboardSummary({
                 userId: session.user.id,
@@ -71,24 +104,33 @@ export default function HomeScreen() {
             });
 
             setSummary(result);
+        } catch {
+            // Si la carga falla activamos el estado de error para
+            // mostrar feedback al usuario en lugar de pantalla vacía.
+            setHasError(true);
         } finally {
+            // finally siempre se ejecuta — con éxito o con error.
+            // Garantiza que el spinner siempre desaparezca.
             setIsLoading(false);
         }
     }, [session?.user.id, selectedMonth, selectedYear]);
 
+    // ─── Recargar al enfocar la pantalla ─────────────────────────────────────
+    // useFocusEffect recarga el dashboard cada vez que el usuario
+    // regresa a esta pantalla — por ejemplo, después de agregar un gasto.
     useFocusEffect(
         useCallback(() => {
             void loadDashboard();
         }, [loadDashboard])
     );
 
+    // ─── Navegación entre meses ───────────────────────────────────────────────
     const handlePreviousMonth = () => {
         if (selectedMonth === 1) {
             setSelectedMonth(12);
             setSelectedYear((prev) => prev - 1);
             return;
         }
-
         setSelectedMonth((prev) => prev - 1);
     };
 
@@ -98,7 +140,6 @@ export default function HomeScreen() {
             setSelectedYear((prev) => prev + 1);
             return;
         }
-
         setSelectedMonth((prev) => prev + 1);
     };
 
@@ -118,9 +159,95 @@ export default function HomeScreen() {
         router.replace("/login");
     };
 
+    // ─── Render: estado de carga ──────────────────────────────────────────────
+    // Mientras carga mostramos el spinner centrado en pantalla.
+    if (isLoading) {
+        return (
+            <FormScreenContainer>
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                    }}
+                >
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            </FormScreenContainer>
+        );
+    }
+
+    // ─── Render: estado de error ──────────────────────────────────────────────
+    // Si la carga falló mostramos un mensaje claro con botón de reintento.
+    if (hasError) {
+        return (
+            <FormScreenContainer>
+                <View
+                    style={{
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        paddingHorizontal: spacing["2xl"],
+                    }}
+                >
+                    <Text
+                        style={{
+                            fontSize: typography.bodyLg,
+                            fontWeight: typography.weightSemibold,
+                            color: colors.text,
+                            textAlign: "center",
+                            marginBottom: spacing.sm,
+                        }}
+                    >
+                        No se pudo cargar el resumen
+                    </Text>
+
+                    <Text
+                        style={{
+                            fontSize: typography.bodyMd,
+                            color: colors.textMuted,
+                            textAlign: "center",
+                            marginBottom: spacing.xl,
+                            lineHeight: 22,
+                        }}
+                    >
+                        Revisa tu conexión e intenta de nuevo.
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={() => void loadDashboard()}
+                        activeOpacity={0.85}
+                        style={{
+                            backgroundColor: colors.primary,
+                            paddingVertical: 12,
+                            paddingHorizontal: spacing["2xl"],
+                            borderRadius: 12,
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: colors.white,
+                                fontSize: typography.bodyMd,
+                                fontWeight: typography.weightSemibold,
+                            }}
+                        >
+                            Reintentar
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </FormScreenContainer>
+        );
+    }
+
+    // ─── Render: contenido principal ──────────────────────────────────────────
+    // Con los estados de carga y error resueltos arriba, aquí solo
+    // llega el flujo feliz — el dashboard con datos reales.
+    // Nota cómo cada sección es ahora un componente de una línea.
     return (
         <FormScreenContainer>
             <View style={{ flex: 1, paddingVertical: spacing.lg }}>
+
+                {/* ── Header ── */}
                 <View style={{ marginBottom: spacing["2xl"] }}>
                     <Text
                         style={{
@@ -154,6 +281,7 @@ export default function HomeScreen() {
                     </Text>
                 </View>
 
+                {/* ── Selector de período ── */}
                 <PeriodChips
                     activeKey={activePeriodKey}
                     onSelectCurrent={handleSelectCurrentMonth}
@@ -167,407 +295,53 @@ export default function HomeScreen() {
                     onNext={handleNextMonth}
                 />
 
-                {isLoading ? (
-                    <View
+                {/* ── Saldo del mes ── */}
+                <BalanceCard
+                    balance={summary.balance}
+                    transactionCount={summary.transactionCount}
+                />
+
+                {/* ── Ingresos y egresos ── */}
+                <IncomeExpenseRow
+                    totalIncome={summary.totalIncome}
+                    totalExpense={summary.totalExpense}
+                />
+
+                {/* ── Banner de sync pendiente — solo si hay pendientes ── */}
+                {summary.pendingSyncCount > 0 && (
+                    <PendingSyncBanner
+                        pendingCount={summary.pendingSyncCount}
+                    />
+                )}
+
+                {/* ── Resumen por categoría ── */}
+                <CategoriesSummary items={summary.categoriesSummary} />
+
+                {/* ── Resumen por cuenta ── */}
+                <AccountsSummary items={summary.accountsSummary} />
+
+                {/* ── Acciones rápidas ── */}
+                <QuickActions />
+
+                {/* ── Estado vacío — solo si no hay movimientos ── */}
+                {summary.transactionCount === 0 && <EmptyMonthState />}
+
+                {/* ── Cerrar sesión ── */}
+                <TouchableOpacity
+                    onPress={() => void handleLogout()}
+                    activeOpacity={0.8}
+                    style={{ marginTop: spacing.sm }}
+                >
+                    <Text
                         style={{
-                            flex: 1,
-                            justifyContent: "center",
-                            alignItems: "center",
+                            color: colors.textMuted,
+                            textAlign: "center",
+                            fontSize: typography.bodyMd,
                         }}
                     >
-                        <ActivityIndicator size="large" color={colors.primary} />
-                    </View>
-                ) : (
-                    <>
-                        <AppCard
-                            style={{
-                                marginBottom: spacing.lg,
-                                backgroundColor: colors.primary,
-                                borderColor: colors.primary,
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    color: colors.white,
-                                    fontSize: typography.bodyMd,
-                                    marginBottom: spacing.sm,
-                                }}
-                            >
-                                Saldo del mes
-                            </Text>
-
-                            <Text
-                                style={{
-                                    color: colors.white,
-                                    fontSize: 32,
-                                    fontWeight: typography.weightBold,
-                                    marginBottom: spacing.sm,
-                                }}
-                            >
-                                ${summary.balance.toFixed(2)}
-                            </Text>
-
-                            <Text
-                                style={{
-                                    color: "rgba(255,255,255,0.85)",
-                                    fontSize: typography.bodySm,
-                                }}
-                            >
-                                Movimientos registrados: {summary.transactionCount}
-                            </Text>
-                        </AppCard>
-
-                        <View
-                            style={{
-                                flexDirection: "row",
-                                gap: spacing.md,
-                                marginBottom: spacing.lg,
-                            }}
-                        >
-                            <AppCard style={{ flex: 1 }}>
-                                <Text
-                                    style={{
-                                        color: colors.textMuted,
-                                        fontSize: typography.bodySm,
-                                        marginBottom: spacing.xs,
-                                    }}
-                                >
-                                    Ingresos
-                                </Text>
-
-                                <Text
-                                    style={{
-                                        color: colors.success,
-                                        fontSize: typography.titleSection,
-                                        fontWeight: typography.weightBold,
-                                    }}
-                                >
-                                    ${summary.totalIncome.toFixed(2)}
-                                </Text>
-                            </AppCard>
-
-                            <AppCard style={{ flex: 1 }}>
-                                <Text
-                                    style={{
-                                        color: colors.textMuted,
-                                        fontSize: typography.bodySm,
-                                        marginBottom: spacing.xs,
-                                    }}
-                                >
-                                    Egresos
-                                </Text>
-
-                                <Text
-                                    style={{
-                                        color: colors.danger,
-                                        fontSize: typography.titleSection,
-                                        fontWeight: typography.weightBold,
-                                    }}
-                                >
-                                    ${summary.totalExpense.toFixed(2)}
-                                </Text>
-                            </AppCard>
-                        </View>
-
-                        {summary.pendingSyncCount > 0 ? (
-                            <AppCard
-                                style={{
-                                    marginBottom: spacing.lg,
-                                    backgroundColor: colors.warningSoft,
-                                    borderColor: colors.warningSoft,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        color: colors.warning,
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                        marginBottom: spacing.xs,
-                                    }}
-                                >
-                                    Pendientes de sincronización
-                                </Text>
-
-                                <Text
-                                    style={{
-                                        color: colors.text,
-                                        fontSize: typography.bodyMd,
-                                        lineHeight: 22,
-                                    }}
-                                >
-                                    Tienes {summary.pendingSyncCount} movimiento(s) pendiente(s)
-                                    por sincronizar.
-                                </Text>
-                            </AppCard>
-                        ) : null}
-
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                Resumen por categoría
-                            </Text>
-
-                            {summary.categoriesSummary.length === 0 ? (
-                                <Text
-                                    style={{
-                                        color: colors.textMuted,
-                                        fontSize: typography.bodyMd,
-                                        lineHeight: 22,
-                                    }}
-                                >
-                                    Aún no hay datos para agrupar por categoría este mes.
-                                </Text>
-                            ) : (
-                                <View style={{ gap: spacing.md }}>
-                                    {summary.categoriesSummary.map((item) => (
-                                        <View
-                                            key={item.categoryId}
-                                            style={{
-                                                flexDirection: "row",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    color: colors.text,
-                                                    fontSize: typography.bodyMd,
-                                                    fontWeight: typography.weightSemibold,
-                                                }}
-                                            >
-                                                {item.categoryName}
-                                            </Text>
-
-                                            <Text
-                                                style={{
-                                                    color: colors.textMuted,
-                                                    fontSize: typography.bodyMd,
-                                                }}
-                                            >
-                                                ${item.totalAmount.toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </AppCard>
-
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                Resumen por cuenta
-                            </Text>
-
-                            {summary.accountsSummary.length === 0 ? (
-                                <Text
-                                    style={{
-                                        color: colors.textMuted,
-                                        fontSize: typography.bodyMd,
-                                        lineHeight: 22,
-                                    }}
-                                >
-                                    Aún no hay datos para agrupar por cuenta este mes.
-                                </Text>
-                            ) : (
-                                <View style={{ gap: spacing.md }}>
-                                    {summary.accountsSummary.map((item) => (
-                                        <View
-                                            key={item.accountId}
-                                            style={{
-                                                flexDirection: "row",
-                                                justifyContent: "space-between",
-                                                alignItems: "center",
-                                            }}
-                                        >
-                                            <Text
-                                                style={{
-                                                    color: colors.text,
-                                                    fontSize: typography.bodyMd,
-                                                    fontWeight: typography.weightSemibold,
-                                                }}
-                                            >
-                                                {item.accountName}
-                                            </Text>
-
-                                            <Text
-                                                style={{
-                                                    color: colors.textMuted,
-                                                    fontSize: typography.bodyMd,
-                                                }}
-                                            >
-                                                ${item.totalAmount.toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </AppCard>
-
-                        <AppCard style={{ marginBottom: spacing.lg }}>
-                            <Text
-                                style={{
-                                    fontSize: typography.titleSection,
-                                    fontWeight: typography.weightBold,
-                                    color: colors.text,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                Acciones rápidas
-                            </Text>
-
-                            <TouchableOpacity
-                                onPress={() => router.push("/add-transaction")}
-                                activeOpacity={0.85}
-                                style={{
-                                    backgroundColor: colors.primary,
-                                    paddingVertical: 15,
-                                    paddingHorizontal: 16,
-                                    borderRadius: 16,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        color: colors.white,
-                                        textAlign: "center",
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                    }}
-                                >
-                                    Agregar movimiento
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => router.push("/history")}
-                                activeOpacity={0.85}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: colors.border,
-                                    backgroundColor: colors.white,
-                                    paddingVertical: 15,
-                                    paddingHorizontal: 16,
-                                    borderRadius: 16,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        color: colors.text,
-                                        textAlign: "center",
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                    }}
-                                >
-                                    Ver historial
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => router.push("/sync-inspector")}
-                                activeOpacity={0.85}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: colors.border,
-                                    backgroundColor: colors.white,
-                                    paddingVertical: 15,
-                                    paddingHorizontal: 16,
-                                    borderRadius: 16,
-                                    marginBottom: spacing.md,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        color: colors.text,
-                                        textAlign: "center",
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                    }}
-                                >
-                                    Ver sync queue
-                                </Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={() => router.push("/settings")}
-                                activeOpacity={0.85}
-                                style={{
-                                    borderWidth: 1,
-                                    borderColor: colors.border,
-                                    backgroundColor: colors.white,
-                                    paddingVertical: 15,
-                                    paddingHorizontal: 16,
-                                    borderRadius: 16,
-                                }}
-                            >
-                                <Text
-                                    style={{
-                                        color: colors.text,
-                                        textAlign: "center",
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                    }}
-                                >
-                                    Configuración
-                                </Text>
-                            </TouchableOpacity>
-                        </AppCard>
-
-                        {summary.transactionCount === 0 ? (
-                            <AppCard style={{ marginBottom: spacing.lg }}>
-                                <Text
-                                    style={{
-                                        color: colors.text,
-                                        fontSize: typography.bodyLg,
-                                        fontWeight: typography.weightSemibold,
-                                        marginBottom: spacing.xs,
-                                    }}
-                                >
-                                    Mes sin movimientos
-                                </Text>
-
-                                <Text
-                                    style={{
-                                        color: colors.textMuted,
-                                        fontSize: typography.bodyMd,
-                                        lineHeight: 22,
-                                    }}
-                                >
-                                    Aún no hay registros para este mes. Agrega uno para empezar a
-                                    ver tu resumen.
-                                </Text>
-                            </AppCard>
-                        ) : null}
-
-                        <TouchableOpacity
-                            onPress={handleLogout}
-                            activeOpacity={0.8}
-                            style={{ marginTop: spacing.sm }}
-                        >
-                            <Text
-                                style={{
-                                    color: colors.textMuted,
-                                    textAlign: "center",
-                                    fontSize: typography.bodyMd,
-                                }}
-                            >
-                                Cerrar sesión
-                            </Text>
-                        </TouchableOpacity>
-                    </>
-                )}
+                        Cerrar sesión
+                    </Text>
+                </TouchableOpacity>
             </View>
         </FormScreenContainer>
     );
