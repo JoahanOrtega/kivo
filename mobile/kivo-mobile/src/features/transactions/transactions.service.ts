@@ -56,13 +56,25 @@ function generateLocalId(): string {
     return randomUUID();
 }
 
+// Genera el rango de fechas para filtrar transacciones de un mes específico.
+// Usamos strings de fecha pura 'YYYY-MM-DD' en lugar de ISO timestamps
+// para que la comparación en SQLite sea consistente sin importar el timezone
+// del dispositivo.
 function getMonthRange(year: number, month: number) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 1);
+    // Padding para garantizar formato de 2 dígitos: 1 → "01", 12 → "12"
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    // Mes siguiente para el límite superior del rango.
+    // Si estamos en diciembre (mes 12), el siguiente es enero del año siguiente.
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
 
     return {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        // Primer día del mes seleccionado — inclusivo
+        start: `${year}-${pad(month)}-01`,
+        // Primer día del mes siguiente — exclusivo
+        // El filtro usa >= start AND < end, así captura todo el mes exacto
+        end: `${nextYear}-${pad(nextMonth)}-01`,
     };
 }
 
