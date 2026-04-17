@@ -3,6 +3,7 @@ import {
     enqueueOrMergeSyncOperation,
     removeOpenQueueItems,
 } from "@/features/sync/sync-queue.service";
+import { randomUUID } from "expo-crypto";
 export type CreateTransactionInput = {
     userId: string;
     type: "income" | "expense";
@@ -48,8 +49,11 @@ export type TransactionHistoryFilters = {
     searchText?: string;
 };
 
+// Ahora — UUID v4 verdadero, garantiza unicidad global.
+// expo-crypto usa el generador criptográfico del sistema operativo,
+// no Math.random() que es predecible y no es criptográficamente seguro.
 function generateLocalId(): string {
-    return `txn_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    return randomUUID();
 }
 
 function getMonthRange(year: number, month: number) {

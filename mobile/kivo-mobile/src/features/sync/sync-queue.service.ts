@@ -4,11 +4,13 @@ import type {
     SyncOperationType,
     SyncQueueItem,
 } from "@/types/sync";
+import { randomUUID } from "expo-crypto";
 
+// Ahora — mismo razonamiento que generateLocalId.
+// Un UUID es suficientemente descriptivo sin necesitar prefijo.
 function generateQueueId(): string {
-    return `sync_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    return randomUUID();
 }
-
 /**
  * Obtiene la operación pendiente más reciente para una entidad local.
  * Solo considera estados pendientes o fallidos, que siguen siendo reintentables.
