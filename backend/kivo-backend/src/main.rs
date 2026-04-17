@@ -22,6 +22,8 @@ mod db;
 mod handlers;
 mod middleware;
 mod models;
+mod errors;
+
 
 #[tokio::main]
 async fn main() {
@@ -57,8 +59,9 @@ async fn main() {
     // Todas las rutas se definen aquí. Cada módulo de handlers
     // expone una función que retorna su sub-router.
     let app = Router::new()
-        .merge(handlers::health::router())
-        .with_state(pool);
+    .merge(handlers::health::router())
+    .merge(handlers::auth::router())
+    .with_state(pool);
 
     // ─── 5. Iniciar el servidor ───────────────────────────────────────────────
     let port = std::env::var("PORT")
