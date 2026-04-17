@@ -85,17 +85,19 @@ export function PeriodSelector({
                     borderWidth: 1,
                     borderColor: colors.border,
                     borderRadius: 16,
-                    paddingVertical: spacing.sm,
+                    // Altura generosa — Ley de Fitts
+                    paddingVertical: spacing.md,
                     paddingHorizontal: spacing.md,
                 }}
             >
-                {/* Flecha izquierda — mes anterior */}
+                {/* Flecha izquierda — área táctil amplia */}
                 <TouchableOpacity
                     onPress={() => void handlePrevious()}
-                    activeOpacity={0.7}
-                    // Área de toque generosa — Ley de Fitts
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={{ padding: spacing.sm }}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    style={{
+                        padding: spacing.sm,
+                    }}
                 >
                     <Ionicons
                         name="chevron-back"
@@ -104,7 +106,7 @@ export function PeriodSelector({
                     />
                 </TouchableOpacity>
 
-                {/* Mes y año centrado — texto capitalizado */}
+                {/* Mes y año — toca cualquier parte del centro para nada por ahora */}
                 <Text
                     style={{
                         fontSize: typography.bodyLg,
@@ -115,12 +117,14 @@ export function PeriodSelector({
                     {getMonthName(month, year)}
                 </Text>
 
-                {/* Flecha derecha — mes siguiente */}
+                {/* Flecha derecha — área táctil amplia */}
                 <TouchableOpacity
                     onPress={() => void handleNext()}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    style={{ padding: spacing.sm }}
+                    activeOpacity={0.6}
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    style={{
+                        padding: spacing.sm,
+                    }}
                 >
                     <Ionicons
                         name="chevron-forward"

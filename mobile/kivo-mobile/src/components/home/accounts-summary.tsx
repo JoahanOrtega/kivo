@@ -1,28 +1,24 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { AppCard } from "@/components/ui/app-card";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-// Misma estructura que CategorySummaryItem pero para cuentas.
-// Aunque son similares, los mantenemos separados porque en el futuro
-// pueden divergir — por ejemplo, agregar el tipo de cuenta o su color.
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 interface AccountSummaryItem {
     accountId: string;
     accountName: string;
     totalAmount: number;
 }
 
-// ─── Props ───────────────────────────────────────────────────────────────────
 interface AccountsSummaryProps {
-    /** Lista de cuentas con su total de movimientos en el mes. */
     items: AccountSummaryItem[];
 }
 
 // ─── Subcomponente: fila individual ──────────────────────────────────────────
-// Renderiza una sola fila con el nombre de la cuenta y su monto total.
 function AccountRow({ item }: { item: AccountSummaryItem }) {
     return (
         <View
@@ -34,9 +30,8 @@ function AccountRow({ item }: { item: AccountSummaryItem }) {
         >
             <Text
                 style={{
-                    color: colors.text,
+                    color: colors.textMuted,
                     fontSize: typography.bodyMd,
-                    fontWeight: typography.weightSemibold,
                 }}
             >
                 {item.accountName}
@@ -44,8 +39,9 @@ function AccountRow({ item }: { item: AccountSummaryItem }) {
 
             <Text
                 style={{
-                    color: colors.textMuted,
+                    color: colors.text,
                     fontSize: typography.bodyMd,
+                    fontWeight: typography.weightSemibold,
                 }}
             >
                 ${item.totalAmount.toFixed(2)}
@@ -54,8 +50,7 @@ function AccountRow({ item }: { item: AccountSummaryItem }) {
     );
 }
 
-// ─── Subcomponente: estado vacío ─────────────────────────────────────────────
-// Mensaje que se muestra cuando no hay movimientos registrados en el mes.
+// ─── Subcomponente: estado vacío ──────────────────────────────────────────────
 function EmptyAccounts() {
     return (
         <Text
@@ -70,32 +65,58 @@ function EmptyAccounts() {
     );
 }
 
-// ─── Componente principal ────────────────────────────────────────────────────
-// Idéntico en estructura a CategoriesSummary pero para cuentas.
-// Mantenerlos separados respeta el principio de responsabilidad única —
-// si el diseño de uno cambia, no afecta al otro.
+// ─── Componente principal ─────────────────────────────────────────────────────
+// Colapsable — reduce la carga visual del home mostrando solo el título
+// por defecto. El usuario expande si quiere ver el detalle por cuenta.
+//
+// Resuelve la Ley de Miller — menos información simultánea en pantalla.
+// El detalle por cuenta es secundario al detalle por categoría.
 export function AccountsSummary({ items }: AccountsSummaryProps) {
+    // ─── Estado: expandido/colapsado ──────────────────────────────────────────
+    // Por defecto colapsado — el usuario decide si necesita este detalle.
+    const [isExpanded, setIsExpanded] = useState(false);
+
     return (
         <AppCard style={{ marginBottom: spacing.lg }}>
-            <Text
+
+            {/* ── Header tappable — toca para expandir/colapsar ── */}
+            <TouchableOpacity
+                onPress={() => setIsExpanded((prev) => !prev)}
+                activeOpacity={0.7}
                 style={{
-                    fontSize: typography.titleSection,
-                    fontWeight: typography.weightBold,
-                    color: colors.text,
-                    marginBottom: spacing.md,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                 }}
             >
-                Resumen por cuenta
-            </Text>
+                <Text
+                    style={{
+                        fontSize: typography.titleSection,
+                        fontWeight: typography.weightBold,
+                        color: colors.text,
+                    }}
+                >
+                    Resumen por cuenta
+                </Text>
 
-            {/* Condicional limpio: estado vacío o lista de filas */}
-            {items.length === 0 ? (
-                <EmptyAccounts />
-            ) : (
-                <View style={{ gap: spacing.md }}>
-                    {items.map((item) => (
-                        <AccountRow key={item.accountId} item={item} />
-                    ))}
+                {/* Ícono que comunica el estado expandido/colapsado */}
+                <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={colors.textMuted}
+                />
+            </TouchableOpacity>
+
+            {/* ── Contenido — solo visible cuando está expandido ── */}
+            {isExpanded && (
+                <View style={{ marginTop: spacing.md, gap: spacing.md }}>
+                    {items.length === 0 ? (
+                        <EmptyAccounts />
+                    ) : (
+                        items.map((item) => (
+                            <AccountRow key={item.accountId} item={item} />
+                        ))
+                    )}
                 </View>
             )}
         </AppCard>

@@ -29,7 +29,7 @@ export function BalanceCard({ balance, transactionCount }: BalanceCardProps) {
                 borderColor: colors.primary,
             }}
         >
-            {/* Etiqueta superior — describe qué número estamos viendo */}
+            {/* Etiqueta — "Saldo del mes" */}
             <Text
                 style={{
                     color: colors.white,
@@ -40,7 +40,6 @@ export function BalanceCard({ balance, transactionCount }: BalanceCardProps) {
                 Saldo del mes
             </Text>
 
-            {/* Valor principal — formateado a 2 decimales siempre */}
             <Text
                 style={{
                     color: colors.white,
@@ -52,14 +51,16 @@ export function BalanceCard({ balance, transactionCount }: BalanceCardProps) {
                 ${balance.toFixed(2)}
             </Text>
 
-            {/* Contador de movimientos — contexto adicional para el usuario */}
+            {/* Contexto adicional — más descriptivo */}
             <Text
                 style={{
                     color: "rgba(255,255,255,0.85)",
                     fontSize: typography.bodySm,
                 }}
             >
-                Movimientos registrados: {transactionCount}
+                {transactionCount === 0
+                    ? "Sin movimientos este mes"
+                    : `${transactionCount} ${transactionCount === 1 ? "movimiento" : "movimientos"} registrados`}
             </Text>
         </AppCard>
     );

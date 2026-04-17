@@ -32,20 +32,22 @@ function CategoryRow({ item }: { item: CategorySummaryItem }) {
                 alignItems: "center",
             }}
         >
+            {/* Etiqueta — secundaria, más apagada */}
             <Text
                 style={{
-                    color: colors.text,
+                    color: colors.textMuted,
                     fontSize: typography.bodyMd,
-                    fontWeight: typography.weightSemibold,
                 }}
             >
                 {item.categoryName}
             </Text>
 
+            {/* Monto — primario, más prominente que la etiqueta */}
             <Text
                 style={{
-                    color: colors.textMuted,
+                    color: colors.text,
                     fontSize: typography.bodyMd,
+                    fontWeight: typography.weightSemibold,
                 }}
             >
                 ${item.totalAmount.toFixed(2)}
