@@ -1,28 +1,74 @@
 import { Text, View } from "react-native";
 
-import { AppCard } from "@/components/ui/app-card";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 
-// ─── Props ───────────────────────────────────────────────────────────────────
-// Solo necesita los totales de ingresos y egresos del mes seleccionado.
+// ─── Props ────────────────────────────────────────────────────────────────────
 interface IncomeExpenseRowProps {
-    /** Total de ingresos del mes. Siempre positivo. */
     totalIncome: number;
-    /** Total de egresos del mes. Siempre positivo. */
     totalExpense: number;
 }
 
-// ─── Componente ──────────────────────────────────────────────────────────────
-// Renderiza dos tarjetas en fila usando flexDirection: "row".
-// Cada tarjeta ocupa la mitad del espacio disponible con flex: 1.
+// ─── Subcomponente: tarjeta individual ───────────────────────────────────────
+// Reemplaza AppCard con un diseño propio para este contexto específico.
+// AppCard usa fondo blanco genérico — aquí necesitamos fondos con color
+// para comunicar jerarquía secundaria vs la card de saldo principal.
+function MetricCard({
+    label,
+    amount,
+    color,
+    backgroundColor,
+}: {
+    label: string;
+    amount: number;
+    color: string;
+    backgroundColor: string;
+}) {
+    return (
+        <View
+            style={{
+                flex: 1,
+                backgroundColor,
+                borderRadius: 16,
+                padding: spacing.lg,
+                borderWidth: 1,
+                borderColor: backgroundColor,
+            }}
+        >
+            <Text
+                style={{
+                    color: colors.textMuted,
+                    fontSize: typography.bodySm,
+                    marginBottom: spacing.xs,
+                }}
+            >
+                {label}
+            </Text>
+
+            <Text
+                style={{
+                    color,
+                    fontSize: typography.titleSection,
+                    fontWeight: typography.weightBold,
+                }}
+            >
+                ${amount.toFixed(2)}
+            </Text>
+        </View>
+    );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+// Usa fondos con color en lugar de blanco puro para diferenciar visualmente
+// estas cards de las cards de detalle (categorías, cuentas).
+// Verde suave para ingresos, rojo suave para egresos — refuerza el significado
+// del color sin necesitar leer la etiqueta.
 export function IncomeExpenseRow({
     totalIncome,
     totalExpense,
 }: IncomeExpenseRowProps) {
     return (
-        // View contenedor con dirección horizontal y gap entre tarjetas
         <View
             style={{
                 flexDirection: "row",
@@ -30,53 +76,19 @@ export function IncomeExpenseRow({
                 marginBottom: spacing.lg,
             }}
         >
-            {/* ── Tarjeta de ingresos ── */}
-            <AppCard style={{ flex: 1 }}>
-                <Text
-                    style={{
-                        color: colors.textMuted,
-                        fontSize: typography.bodySm,
-                        marginBottom: spacing.xs,
-                    }}
-                >
-                    Ingresos
-                </Text>
+            <MetricCard
+                label="Ingresos"
+                amount={totalIncome}
+                color={colors.success}
+                backgroundColor={colors.successSoft}
+            />
 
-                {/* Verde para ingresos — refuerzo visual positivo */}
-                <Text
-                    style={{
-                        color: colors.success,
-                        fontSize: typography.titleSection,
-                        fontWeight: typography.weightBold,
-                    }}
-                >
-                    ${totalIncome.toFixed(2)}
-                </Text>
-            </AppCard>
-
-            {/* ── Tarjeta de egresos ── */}
-            <AppCard style={{ flex: 1 }}>
-                <Text
-                    style={{
-                        color: colors.textMuted,
-                        fontSize: typography.bodySm,
-                        marginBottom: spacing.xs,
-                    }}
-                >
-                    Egresos
-                </Text>
-
-                {/* Rojo para egresos — señal visual de salida de dinero */}
-                <Text
-                    style={{
-                        color: colors.danger,
-                        fontSize: typography.titleSection,
-                        fontWeight: typography.weightBold,
-                    }}
-                >
-                    ${totalExpense.toFixed(2)}
-                </Text>
-            </AppCard>
+            <MetricCard
+                label="Egresos"
+                amount={totalExpense}
+                color={colors.danger}
+                backgroundColor={colors.dangerSoft}
+            />
         </View>
     );
 }

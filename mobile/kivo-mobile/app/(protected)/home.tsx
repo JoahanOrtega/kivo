@@ -13,7 +13,6 @@ import { CategoriesSummary } from "@/components/home/categories-summary";
 import { EmptyMonthState } from "@/components/home/empty-month-state";
 import { IncomeExpenseRow } from "@/components/home/income-expense-row";
 import { PendingSyncBanner } from "@/components/home/pending-sync-banner";
-import { QuickActions } from "@/components/home/quick-actions";
 
 import {
     getDashboardSummary,
@@ -243,9 +242,6 @@ export default function HomeScreen() {
 
                 {/* ── Resumen por cuenta ── */}
                 <AccountsSummary items={summary.accountsSummary} />
-
-                {/* ── Acciones rápidas ── */}
-                <QuickActions />
 
                 {/* ── Estado vacío — solo si no hay movimientos ── */}
                 {summary.transactionCount === 0 && <EmptyMonthState />}
