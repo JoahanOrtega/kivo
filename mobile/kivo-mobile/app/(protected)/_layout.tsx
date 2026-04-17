@@ -3,12 +3,18 @@ import { TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
 
 // ─── FAB flotante ─────────────────────────────────────────────────────────────
+// Flota sobre el tab bar centrado entre los dos tabs.
+// No forma parte del tab bar — es un elemento absolutamente posicionado
+// sobre el View contenedor del layout.
 function FloatingFAB() {
+    const insets = useSafeAreaInsets();
+
     const handlePress = async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         router.push("/add-transaction");
@@ -18,10 +24,16 @@ function FloatingFAB() {
         <TouchableOpacity
             onPress={handlePress}
             activeOpacity={0.85}
+            // pointerEvents="box-only" permite que los toques pasen a través
+            // del área transparente alrededor del botón — solo el círculo
+            // azul captura toques, no el espacio invisible alrededor.
             style={{
                 position: "absolute",
                 alignSelf: "center",
-                bottom: 30,
+                // Centramos el FAB verticalmente sobre el tab bar.
+                // tab bar height (60) / 2 - radio del FAB (26) = 4
+                // + insets.bottom para respetar el home indicator del iPhone
+                bottom: insets.bottom + 4,
                 width: 52,
                 height: 52,
                 borderRadius: 26,
@@ -30,7 +42,7 @@ function FloatingFAB() {
                 alignItems: "center",
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.25,
+                shadowOpacity: 0.2,
                 shadowRadius: 6,
                 elevation: 6,
             }}
@@ -47,6 +59,9 @@ export default function ProtectedLayout() {
     if (!isAuthenticated) return <Redirect href="/login" />;
 
     return (
+        // View contenedor relativo — necesario para que el FAB
+        // con position: "absolute" se posicione relativo a este View
+        // y no a toda la pantalla.
         <View style={{ flex: 1 }}>
             <Tabs
                 screenOptions={{
@@ -67,7 +82,6 @@ export default function ProtectedLayout() {
                     },
                 }}
             >
-                {/* ── Tab: Inicio ── */}
                 <Tabs.Screen
                     name="home"
                     options={{
@@ -78,7 +92,6 @@ export default function ProtectedLayout() {
                     }}
                 />
 
-                {/* ── Tab: Configuración ── */}
                 <Tabs.Screen
                     name="settings"
                     options={{
@@ -89,17 +102,18 @@ export default function ProtectedLayout() {
                     }}
                 />
 
-                {/* ── Rutas que NO son tabs ─────────────────────────────────────
-                    href: null le dice a Expo Router que estas rutas existen
-                    dentro del grupo (protected) pero no deben aparecer
-                    en el tab bar bajo ninguna circunstancia. */}
                 <Tabs.Screen
                     name="edit-transaction/[localId]"
                     options={{ href: null }}
                 />
+
+                {/* ── Ocultar add.tsx si existe ── */}
+                <Tabs.Screen
+                    name="add"
+                    options={{ href: null }}
+                />
             </Tabs>
 
-            {/* ── FAB flotante sobre el tab bar ── */}
             <FloatingFAB />
         </View>
     );

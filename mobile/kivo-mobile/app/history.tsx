@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
-import { MonthSelector } from "@/components/ui/month-selector";
 import { useToast } from "@/components/ui/toast-provider";
 
 // ─── Componentes del historial ────────────────────────────────────────────────
@@ -27,6 +26,7 @@ import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import type { Account, Category } from "@/types/catalogs";
 import type { TransactionItemData } from "@/components/history/transaction-item";
+import { PeriodSelector } from "@/components/ui/period-selector";
 
 // ─── Helper: deduplicar por id ────────────────────────────────────────────────
 // Resuelve el problema #6 del análisis — la deduplicación original
@@ -53,6 +53,12 @@ export default function HistoryScreen() {
     const [categoryFilter, setCategoryFilter] = useState("");
     const [accountFilter, setAccountFilter] = useState("");
     const [searchText, setSearchText] = useState("");
+
+    // ─── Ir al mes actual ─────────────────────────────────────────────────────────
+    const handleGoToCurrentMonth = () => {
+        setSelectedMonth(now.getMonth() + 1);
+        setSelectedYear(now.getFullYear());
+    };
 
     // ─── Estado: catálogos de filtros ─────────────────────────────────────────
     const [categories, setCategories] = useState<Category[]>([]);
@@ -218,11 +224,12 @@ export default function HistoryScreen() {
                 </View>
 
                 {/* ── Selector de mes ── */}
-                <MonthSelector
+                <PeriodSelector
                     month={selectedMonth}
                     year={selectedYear}
                     onPrevious={handlePreviousMonth}
                     onNext={handleNextMonth}
+                    onGoToCurrentMonth={handleGoToCurrentMonth}
                 />
 
                 {/* ── Filtros ── */}

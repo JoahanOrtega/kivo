@@ -1,10 +1,9 @@
-import { useFocusEffect, router } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
-import { MonthSelector } from "@/components/ui/month-selector";
-import { PeriodChips } from "@/components/ui/period-chips";
+import { PeriodSelector } from "@/components/ui/period-selector";
 
 // ─── Componentes del home ─────────────────────────────────────────────────────
 // Cada uno vive en su propio archivo y tiene una responsabilidad clara.
@@ -42,8 +41,6 @@ const INITIAL_SUMMARY: DashboardSummary = {
 
 export default function HomeScreen() {
     const session = useAuthStore((state) => state.session);
-    const logout = useAuthStore((state) => state.logout);
-
     const now = new Date();
 
     // ─── Estado del período seleccionado ─────────────────────────────────────
@@ -60,29 +57,6 @@ export default function HomeScreen() {
     // Nuevo vs el original — si la carga falla, guardamos el error
     // para mostrárselo al usuario en lugar de dejar la pantalla vacía.
     const [hasError, setHasError] = useState(false);
-
-    // ─── Período activo ───────────────────────────────────────────────────────
-    // Calcula si el mes seleccionado es el actual, el anterior, o uno custom.
-    // useMemo evita recalcular esto en cada render — solo recalcula cuando
-    // cambian selectedMonth, selectedYear, o la fecha actual.
-    const activePeriodKey = useMemo(() => {
-        const currentMonth = now.getMonth() + 1;
-        const currentYear = now.getFullYear();
-
-        const previousDate = new Date(currentYear, currentMonth - 2, 1);
-        const previousMonth = previousDate.getMonth() + 1;
-        const previousYear = previousDate.getFullYear();
-
-        if (selectedMonth === currentMonth && selectedYear === currentYear) {
-            return "current" as const;
-        }
-
-        if (selectedMonth === previousMonth && selectedYear === previousYear) {
-            return "previous" as const;
-        }
-
-        return "custom" as const;
-    }, [selectedMonth, selectedYear]);
 
     // ─── Carga del dashboard ──────────────────────────────────────────────────
     // useCallback memoriza la función para que useFocusEffect no la recree
@@ -146,17 +120,6 @@ export default function HomeScreen() {
     const handleSelectCurrentMonth = () => {
         setSelectedMonth(now.getMonth() + 1);
         setSelectedYear(now.getFullYear());
-    };
-
-    const handleSelectPreviousMonth = () => {
-        const previousDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        setSelectedMonth(previousDate.getMonth() + 1);
-        setSelectedYear(previousDate.getFullYear());
-    };
-
-    const handleLogout = async () => {
-        await logout();
-        router.replace("/login");
     };
 
     // ─── Render: estado de carga ──────────────────────────────────────────────
@@ -282,17 +245,12 @@ export default function HomeScreen() {
                 </View>
 
                 {/* ── Selector de período ── */}
-                <PeriodChips
-                    activeKey={activePeriodKey}
-                    onSelectCurrent={handleSelectCurrentMonth}
-                    onSelectPrevious={handleSelectPreviousMonth}
-                />
-
-                <MonthSelector
+                <PeriodSelector
                     month={selectedMonth}
                     year={selectedYear}
                     onPrevious={handlePreviousMonth}
                     onNext={handleNextMonth}
+                    onGoToCurrentMonth={handleSelectCurrentMonth}
                 />
 
                 {/* ── Saldo del mes ── */}
@@ -326,22 +284,6 @@ export default function HomeScreen() {
                 {/* ── Estado vacío — solo si no hay movimientos ── */}
                 {summary.transactionCount === 0 && <EmptyMonthState />}
 
-                {/* ── Cerrar sesión ── */}
-                <TouchableOpacity
-                    onPress={() => void handleLogout()}
-                    activeOpacity={0.8}
-                    style={{ marginTop: spacing.sm }}
-                >
-                    <Text
-                        style={{
-                            color: colors.textMuted,
-                            textAlign: "center",
-                            fontSize: typography.bodyMd,
-                        }}
-                    >
-                        Cerrar sesión
-                    </Text>
-                </TouchableOpacity>
             </View>
         </FormScreenContainer>
     );
