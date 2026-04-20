@@ -8,4 +8,5 @@ pub mod auth;
 pub mod categories;
 pub mod health;
 pub mod payment_methods;
+pub mod sync;
 pub mod transactions;
