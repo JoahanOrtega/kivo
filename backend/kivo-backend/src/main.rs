@@ -19,11 +19,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 // Declaramos los módulos del proyecto.
 // Cada módulo vive en su propia carpeta dentro de src/.
 mod db;
+mod errors;
 mod handlers;
 mod middleware;
 mod models;
-mod errors;
-
 
 #[tokio::main]
 async fn main() {
@@ -59,10 +58,11 @@ async fn main() {
     // Todas las rutas se definen aquí. Cada módulo de handlers
     // expone una función que retorna su sub-router.
     let app = Router::new()
-    .merge(handlers::health::router())
-    .merge(handlers::auth::router())
-    .merge(handlers::transactions::router())
-    .with_state(pool);
+        .merge(handlers::health::router())
+        .merge(handlers::auth::router())
+        .merge(handlers::transactions::router())
+        .merge(handlers::categories::router())
+        .with_state(pool);
 
     // ─── 5. Iniciar el servidor ───────────────────────────────────────────────
     let port = std::env::var("PORT")
