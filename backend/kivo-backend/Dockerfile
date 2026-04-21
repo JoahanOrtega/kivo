@@ -1,8 +1,7 @@
-FROM rust:1.85-slim
+FROM rust:1.88-slim
 
 WORKDIR /app
 
-# Instalar dependencias del sistema — sqlite3 necesario para sqlx
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
