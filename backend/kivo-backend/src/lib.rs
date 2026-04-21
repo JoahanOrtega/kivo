@@ -4,7 +4,7 @@
 // Expone los módulos del backend para que los tests de integración
 // en tests/ puedan importarlos con `use kivo_backend::...`
 // =============================================================================
-
+#![allow(unused_imports)]
 pub mod db;
 pub mod errors;
 pub mod handlers;
