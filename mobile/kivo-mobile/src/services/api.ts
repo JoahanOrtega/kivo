@@ -233,3 +233,25 @@ export async function getMonthlyReport(
     );
     return handleResponse<MonthlyReportData>(response);
 }
+
+// ─── Tipos de tendencia ───────────────────────────────────────────────────────
+export interface TrendMonth {
+    year: number;
+    month: number;
+    total_income: number;
+    total_expense: number;
+    total_savings: number;
+    balance: number;
+}
+
+export async function getReportsTrend(
+    year: number,
+    month: number,
+    months: number = 6
+): Promise<TrendMonth[]> {
+    const response = await fetch(
+        `${BASE_URL}/reports/trend?year=${year}&month=${month}&months=${months}`,
+        { headers: await buildHeaders(true) }
+    );
+    return handleResponse<TrendMonth[]>(response);
+}

@@ -6,7 +6,7 @@ import { BarChart, PieChart } from "react-native-gifted-charts";
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
 import { AppCard } from "@/components/ui/app-card";
 import { PeriodSelector } from "@/components/ui/period-selector";
-import { getMonthlyReport, type MonthlyReportData } from "@/services/api";
+import { getMonthlyReport, getReportsTrend, type MonthlyReportData } from "@/services/api";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
@@ -16,22 +16,6 @@ const CHART_COLORS = [
     "#2563EB", "#16A34A", "#DC2626", "#D97706",
     "#7C3AED", "#0891B2", "#DB2777", "#65A30D",
 ];
-
-// ─── Helper: últimos 6 meses ──────────────────────────────────────────────────
-// Genera un array con los últimos 6 meses desde el mes seleccionado.
-function getLast6Months(year: number, month: number) {
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-        let m = month - i;
-        let y = year;
-        if (m <= 0) {
-            m += 12;
-            y -= 1;
-        }
-        months.push({ year: y, month: m });
-    }
-    return months;
-}
 
 // ─── Helper: nombre corto del mes ─────────────────────────────────────────────
 function getShortMonthName(month: number): string {
@@ -71,26 +55,21 @@ export default function ReportsScreen() {
     }, [selectedYear, selectedMonth]);
 
     // ─── Carga de tendencia 6 meses ───────────────────────────────────────────────
+    // Usa el endpoint dedicado GET /reports/trend en lugar de 6 llamadas
+    // a /reports/monthly — 1 request HTTP y 1 query SQL en lugar de 6.
     const loadTrend = useCallback(async () => {
         try {
             setIsTrendLoading(true);
-            const months = getLast6Months(selectedYear, selectedMonth);
-
-            // Cargamos todos los meses en paralelo
-            const results = await Promise.all(
-                months.map((m) => getMonthlyReport(m.year, m.month))
-            );
-
+            const data = await getReportsTrend(selectedYear, selectedMonth, 6);
             setTrendData(
-                results.map((r, i) => ({
-                    month: months[i].month,
-                    year: months[i].year,
-                    income: r.total_income,
-                    expense: r.total_expense,
+                data.map((d) => ({
+                    month: d.month,
+                    year: d.year,
+                    income: d.total_income,
+                    expense: d.total_expense,
                 }))
             );
         } catch {
-            // Si falla la tendencia no bloqueamos el resto del reporte
             console.warn("No se pudo cargar la tendencia");
         } finally {
             setIsTrendLoading(false);
