@@ -217,7 +217,144 @@ async fn monthly_report(
     }))
 }
 
+// ─── Parámetros del endpoint de tendencia ────────────────────────────────────
+#[derive(Debug, Deserialize)]
+pub struct TrendParams {
+    pub year: Option<i32>,
+    pub month: Option<i32>,
+    /// Número de meses hacia atrás. Default: 6
+    pub months: Option<i32>,
+}
+
+// ─── Respuesta de tendencia ───────────────────────────────────────────────────
+#[derive(Debug, Serialize)]
+pub struct TrendMonth {
+    pub year: i32,
+    pub month: i32,
+    pub total_income: f64,
+    pub total_expense: f64,
+    pub total_savings: f64,
+    pub balance: f64,
+}
+
+// ─── Handler: GET /reports/trend ─────────────────────────────────────────────
+// Retorna el resumen de ingresos/egresos de los últimos N meses
+// en una sola query SQL eficiente con GROUP BY.
+//
+// Más eficiente que hacer N llamadas a /reports/monthly desde el cliente
+// porque es 1 request HTTP y 1 query a PostgreSQL en lugar de N de cada uno.
+async fn trend_report(
+    auth: AuthUser,
+    State(pool): State<PgPool>,
+    Query(params): Query<TrendParams>,
+) -> Result<Json<Vec<TrendMonth>>, AppError> {
+    use chrono::Datelike;
+
+    let now = chrono::Utc::now().naive_utc().date();
+    let year = params.year.unwrap_or(now.year());
+    let month = params.month.unwrap_or(now.month() as i32);
+    let num_months = params.months.unwrap_or(6).min(24); // máximo 24 meses
+
+    // ── Calcular fecha de inicio ──────────────────────────────────────────────
+    // Restamos N meses desde el mes actual para obtener el rango completo.
+    let mut start_month = month - num_months + 1;
+    let mut start_year = year;
+
+    while start_month <= 0 {
+        start_month += 12;
+        start_year -= 1;
+    }
+
+    let start_date = NaiveDate::from_ymd_opt(start_year, start_month as u32, 1)
+        .ok_or_else(|| AppError::BadRequest("Fecha inválida".to_string()))?;
+
+    // Fin = primer día del mes siguiente al mes seleccionado
+    let end_date = if month == 12 {
+        NaiveDate::from_ymd_opt(year + 1, 1, 1)
+    } else {
+        NaiveDate::from_ymd_opt(year, (month + 1) as u32, 1)
+    }
+    .ok_or_else(|| AppError::BadRequest("Fecha inválida".to_string()))?;
+
+    // ── Query con GROUP BY año y mes ──────────────────────────────────────────
+    // Una sola query que agrupa todas las transacciones del rango
+    // por año y mes — mucho más eficiente que N queries separadas.
+    let rows = sqlx::query!(
+        r#"
+        SELECT
+            EXTRACT(YEAR FROM transaction_date)::int  AS year,
+            EXTRACT(MONTH FROM transaction_date)::int AS month,
+            COALESCE(SUM(CASE WHEN type = 'income'  THEN amount ELSE 0 END), 0) AS total_income,
+            COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS total_expense,
+            COALESCE(SUM(CASE WHEN type = 'savings' THEN amount ELSE 0 END), 0) AS total_savings
+        FROM transactions
+        WHERE user_id = $1
+            AND deleted_at IS NULL
+            AND transaction_date >= $2
+            AND transaction_date < $3
+        GROUP BY
+            EXTRACT(YEAR FROM transaction_date),
+            EXTRACT(MONTH FROM transaction_date)
+        ORDER BY year ASC, month ASC
+        "#,
+        auth.user_id,
+        start_date,
+        end_date
+    )
+    .fetch_all(&pool)
+    .await?;
+
+    // ── Construir respuesta con todos los meses ───────────────────────────────
+    // Incluimos meses sin datos con valores en 0 para que la gráfica
+    // muestre el eje X completo aunque no haya movimientos ese mes.
+    let mut result: Vec<TrendMonth> = Vec::new();
+    let mut cur_month = start_month;
+    let mut cur_year = start_year;
+
+    while cur_year < year || (cur_year == year && cur_month <= month) {
+        // Buscar si hay datos para este mes en los resultados
+        let row = rows
+            .iter()
+            .find(|r| r.year == Some(cur_year) && r.month == Some(cur_month));
+
+        let total_income = row
+            .and_then(|r| r.total_income.as_ref())
+            .map(|v| v.to_string().parse::<f64>().unwrap_or(0.0))
+            .unwrap_or(0.0);
+
+        let total_expense = row
+            .and_then(|r| r.total_expense.as_ref())
+            .map(|v| v.to_string().parse::<f64>().unwrap_or(0.0))
+            .unwrap_or(0.0);
+
+        let total_savings = row
+            .and_then(|r| r.total_savings.as_ref())
+            .map(|v| v.to_string().parse::<f64>().unwrap_or(0.0))
+            .unwrap_or(0.0);
+
+        result.push(TrendMonth {
+            year: cur_year,
+            month: cur_month,
+            total_income,
+            total_expense,
+            total_savings,
+            balance: total_income - total_expense,
+        });
+
+        // Avanzar al siguiente mes
+        cur_month += 1;
+        if cur_month > 12 {
+            cur_month = 1;
+            cur_year += 1;
+        }
+    }
+
+    Ok(Json(result))
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 pub fn router() -> Router<PgPool> {
-    Router::new().route("/reports/monthly", get(monthly_report))
+    Router::new()
+        .route("/reports/monthly", get(monthly_report))
+        .route("/reports/trend", get(trend_report))
 }
