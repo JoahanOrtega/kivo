@@ -3,6 +3,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { isBiometricAvailable } from "@/services/biometrics.service";
+import { useBiometricStore } from "@/store/biometric-store";
 
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { initializeDatabase } from "@/database/migrations";
@@ -17,6 +19,8 @@ import { colors } from "@/theme/colors";
  */
 export default function RootLayout() {
     const hydrateSession = useAuthStore((state) => state.hydrateSession);
+    const loadBiometricPreference = useBiometricStore((s) => s.loadBiometricPreference);
+    const isBiometricEnabled = useBiometricStore((s) => s.isEnabled);
     const [isAppReady, setIsAppReady] = useState(false);
     const [bootError, setBootError] = useState<string | null>(null);
 
@@ -25,6 +29,7 @@ export default function RootLayout() {
             try {
                 await initializeDatabase();
                 await hydrateSession();
+                await loadBiometricPreference();
             } catch (error) {
                 console.error("Bootstrap error:", error);
                 setBootError("Ocurrió un error al iniciar la app.");
@@ -71,6 +76,13 @@ export default function RootLayout() {
                             <Stack.Screen name="(auth)" />
                             <Stack.Screen name="(protected)" />
                             <Stack.Screen
+                                name="biometric-lock"
+                                options={{
+                                    animation: "fade",
+                                    gestureEnabled: false,
+                                }}
+                            />
+                            <Stack.Screen
                                 name="add-transaction"
                                 options={{
                                     presentation: "modal",
@@ -79,16 +91,11 @@ export default function RootLayout() {
                             />
                             <Stack.Screen
                                 name="sync-inspector"
-                                options={{
-                                    animation: "slide_from_right",
-                                }}
+                                options={{ animation: "slide_from_right" }}
                             />
-                            {/* ── edit-transaction vive en el Stack raíz para swipe back en iOS ── */}
                             <Stack.Screen
                                 name="edit-transaction/[localId]"
-                                options={{
-                                    animation: "slide_from_right",
-                                }}
+                                options={{ animation: "slide_from_right" }}
                             />
                         </Stack>
                     </>

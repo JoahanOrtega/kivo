@@ -1,31 +1,25 @@
 import { Redirect } from "expo-router";
-import { ActivityIndicator, View } from "react-native";
-
 import { useAuthStore } from "@/store/auth-store";
-import { colors } from "@/theme/colors";
+import { useBiometricStore } from "@/store/biometric-store";
 
-/**
- * Ruta raíz de la app.
- * Decide si el usuario debe entrar al flujo público o privado
- * una vez que la sesión ya fue hidratada.
- */
-export default function IndexScreen() {
+// ─── Punto de entrada ─────────────────────────────────────────────────────────
+// Decide a dónde redirigir al usuario según su estado:
+// 1. No autenticado → login
+// 2. Autenticado + biometría activa + no verificado → biometric-lock
+// 3. Autenticado + biometría inactiva o ya verificado → home
+export default function Index() {
   const { isAuthenticated, isHydrated } = useAuthStore();
+  const { isEnabled: isBiometricEnabled, isAuthenticated: isBiometricAuthenticated } = useBiometricStore();
 
-  if (!isHydrated) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: colors.background,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+  if (!isHydrated) return null;
+
+  if (!isAuthenticated) {
+    return <Redirect href="/login" />;
   }
 
-  return <Redirect href={isAuthenticated ? "/home" : "/login"} />;
+  if (isBiometricEnabled && !isBiometricAuthenticated) {
+    return <Redirect href="/biometric-lock" />;
+  }
+
+  return <Redirect href="/(protected)/home" />;
 }
