@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
 
 COPY . .
 
+# SQLX_OFFLINE=true permite compilar sin conexión a BD
+# usando el cache generado por `cargo sqlx prepare`
+ENV SQLX_OFFLINE=true
+
 RUN cargo build --release
 
 EXPOSE 8080

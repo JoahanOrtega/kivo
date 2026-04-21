@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                UPDATE transactions SET\n                    category_id       = COALESCE($1, category_id),\n                    payment_method_id = COALESCE($2, payment_method_id),\n                    transaction_date  = COALESCE($3, transaction_date),\n                    type              = COALESCE($4, type),\n                    concept           = COALESCE($5, concept),\n                    amount            = COALESCE($6, amount),\n                    budgeted_amount   = COALESCE($7, budgeted_amount),\n                    notes             = COALESCE($8, notes)\n                WHERE id = $9 AND user_id = $10 AND deleted_at IS NULL\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Date",
+        "Varchar",
+        "Varchar",
+        "Numeric",
+        "Numeric",
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9f066cc72b50ec4473e39a4caeafddd7846ab3c87637814b3d2cfdfa4b095d7b"
+}

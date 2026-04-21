@@ -1,0 +1,81 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO categories (user_id, name, type, color, icon, sort_order)\n        VALUES ($1, $2, $3, $4, $5, $6)\n        RETURNING\n            id, user_id, name,\n            type as type_,\n            color, icon, sort_order, is_active,\n            created_at, updated_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "type_",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "color",
+        "type_info": "Bpchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "icon",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "sort_order",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Bpchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "28de1540c12fd199a389c73717753a1b6375bc53da1e78e6ed5fffca7aea8063"
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO payment_methods (user_id, name, type, color, icon)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (user_id, name) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Bpchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "65cc960c027c065c1cb12f5f87755d73f36cf566051a9c2c4b8a2fab7579046b"
+}

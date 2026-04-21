@@ -1,0 +1,97 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE transactions SET\n            category_id         = COALESCE($1, category_id),\n            payment_method_id   = COALESCE($2, payment_method_id),\n            transaction_date    = COALESCE($3, transaction_date),\n            type                = COALESCE($4, type),\n            concept             = COALESCE($5, concept),\n            amount              = COALESCE($6, amount),\n            budgeted_amount     = COALESCE($7, budgeted_amount),\n            notes               = COALESCE($8, notes)\n        WHERE id = $9 AND user_id = $10\n        RETURNING\n            id, user_id, category_id, payment_method_id,\n            transaction_date, type as type_, concept,\n            amount, budgeted_amount, notes,\n            created_at, updated_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "payment_method_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "transaction_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "type_",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "concept",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "budgeted_amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Date",
+        "Varchar",
+        "Varchar",
+        "Numeric",
+        "Numeric",
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ee515d3e54f4866c44106c0255a489286f8f54887e97b0c5b7c6b85b20912f8f"
+}

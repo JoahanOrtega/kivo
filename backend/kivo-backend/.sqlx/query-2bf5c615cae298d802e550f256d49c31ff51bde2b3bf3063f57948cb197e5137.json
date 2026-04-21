@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            pm.id as \"payment_method_id: Option<Uuid>\",\n            COALESCE(pm.name, 'Sin método') as payment_method_name,\n            COALESCE(SUM(t.amount), 0) as total,\n            COUNT(t.id) as count\n        FROM transactions t\n        LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id\n        WHERE t.user_id = $1\n            AND t.deleted_at IS NULL\n            AND transaction_date >= $2\n            AND transaction_date < $3\n        GROUP BY pm.id, pm.name\n        ORDER BY total DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "payment_method_id: Option<Uuid>",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "payment_method_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "total",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 3,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "2bf5c615cae298d802e550f256d49c31ff51bde2b3bf3063f57948cb197e5137"
+}

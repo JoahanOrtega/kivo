@@ -1,0 +1,90 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            id, user_id, category_id, payment_method_id,\n            transaction_date, type as type_, concept,\n            amount, budgeted_amount, notes,\n            created_at, updated_at\n        FROM transactions\n        WHERE user_id = $1\n            AND deleted_at IS NULL\n            AND transaction_date >= $2\n            AND transaction_date < $3\n        ORDER BY transaction_date DESC, created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "category_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "payment_method_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 4,
+        "name": "transaction_date",
+        "type_info": "Date"
+      },
+      {
+        "ordinal": 5,
+        "name": "type_",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "concept",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "budgeted_amount",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "9398acef3e82fee75ca434ff16f93cf3a414c958baddc8bf165d5ea924b88190"
+}
