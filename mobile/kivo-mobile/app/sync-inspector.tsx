@@ -16,7 +16,7 @@ import {
     getAllSyncQueueItems,
     getPendingSyncCount,
 } from "@/features/sync/sync-queue.service";
-import { mockSyncExecutor, processSyncQueue } from "@/features/sync/sync.service";
+import { processSyncQueue } from "@/features/sync/sync.service";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
@@ -65,7 +65,7 @@ export default function SyncInspectorScreen() {
         try {
             setIsProcessing(true);
 
-            const result = await processSyncQueue(mockSyncExecutor);
+            const result = await processSyncQueue();
 
             await loadQueue();
 

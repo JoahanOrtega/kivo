@@ -1,157 +1,97 @@
 import { getDatabase } from "@/database/db";
 
-/**
- * Inicializa la base local y crea las tablas mínimas del MVP.
- * Este bloque es idempotente y puede ejecutarse en cada arranque.
- */
+// ─── Versión del schema ───────────────────────────────────────────────────────
+const SCHEMA_VERSION = 2;
+
 export async function initializeDatabase(): Promise<void> {
   const db = await getDatabase();
+  await migrate(db, 0);
 
-  await db.execAsync(`
-    -- Activa el modo Write-Ahead Logging para mejor performance
-    -- en escrituras concurrentes (ej: sync corriendo en background).
-    PRAGMA journal_mode = WAL;
-
-    -- Activa la validación de foreign keys.
-    -- SQLite las desactiva por defecto por compatibilidad histórica.
-    -- Sin esto, puedes guardar una transacción con category_id inválido
-    -- y SQLite no te avisará — los datos quedan corruptos silenciosamente.
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-      is_default INTEGER NOT NULL DEFAULT 1,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'both')),
-      is_default INTEGER NOT NULL DEFAULT 1,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS transactions (
-      local_id TEXT PRIMARY KEY NOT NULL,
-      server_id TEXT,
-      user_id TEXT NOT NULL,
-      type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-      amount REAL NOT NULL CHECK (amount > 0),
-      category_id TEXT NOT NULL,
-      account_id TEXT NOT NULL,
-      concept TEXT,
-      budget_amount REAL,
-      note TEXT,
-      transaction_date TEXT NOT NULL,
-      sync_status TEXT NOT NULL CHECK (
-        sync_status IN ('pending_create', 'pending_update', 'pending_delete', 'synced', 'failed')
-      ),
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      deleted_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS sync_queue (
-      id TEXT PRIMARY KEY NOT NULL,
-      entity_type TEXT NOT NULL,
-      entity_local_id TEXT NOT NULL,
-      operation_type TEXT NOT NULL CHECK (
-        operation_type IN ('create', 'update', 'delete')
-      ),
-      payload_json TEXT NOT NULL,
-      status TEXT NOT NULL CHECK (
-        status IN ('pending', 'processing', 'completed', 'failed')
-      ),
-      retry_count INTEGER NOT NULL DEFAULT 0,
-      last_error TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_transactions_user_id
-      ON transactions (user_id);
-
-    CREATE INDEX IF NOT EXISTS idx_transactions_transaction_date
-      ON transactions (transaction_date);
-
-    CREATE INDEX IF NOT EXISTS idx_transactions_sync_status
-      ON transactions (sync_status);
-
-    CREATE INDEX IF NOT EXISTS idx_sync_queue_status
-      ON sync_queue (status);
-
-    CREATE INDEX IF NOT EXISTS idx_sync_queue_entity_local_id
-      ON sync_queue (entity_local_id);
-  `);
-
-  await seedBaseCatalogs();
 }
 
-/**
- * Inserta catálogos mínimos solo si aún no existen.
- */
-async function seedBaseCatalogs(): Promise<void> {
-  const db = await getDatabase();
-  const now = new Date().toISOString();
+async function migrate(db: any, fromVersion: number): Promise<void> {
+  if (fromVersion < 2) {
+    await db.execAsync(`PRAGMA foreign_keys = OFF;`);
+    await db.execAsync(`DROP TABLE IF EXISTS sync_queue;`);
+    await db.execAsync(`DROP TABLE IF EXISTS transactions;`);
+    await db.execAsync(`DROP TABLE IF EXISTS accounts;`);
+    await db.execAsync(`DROP TABLE IF EXISTS categories;`);
+    await db.execAsync(`DROP TABLE IF EXISTS payment_methods;`);
 
-  const existingCategories = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM categories`
-  );
+    await db.execAsync(`
+            CREATE TABLE categories (
+                id          TEXT PRIMARY KEY NOT NULL,
+                user_id     TEXT,
+                name        TEXT NOT NULL,
+                type        TEXT NOT NULL,
+                color       TEXT NOT NULL DEFAULT '#6B7280',
+                icon        TEXT NOT NULL DEFAULT 'tag',
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                is_active   INTEGER NOT NULL DEFAULT 1,
+                created_at  TEXT NOT NULL,
+                updated_at  TEXT NOT NULL,
+                sync_status TEXT NOT NULL DEFAULT 'synced'
+            );
+        `);
 
-  if ((existingCategories?.count ?? 0) === 0) {
-    await db.runAsync(
-      `
-        INSERT INTO categories (id, name, type, is_default, is_active, created_at, updated_at)
-        VALUES
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?)
-      `,
-      [
-        "cat-expense-general", "Gastos", "expense", now, now,
-        "cat-expense-services", "Servicios", "expense", now, now,
-        "cat-expense-debts", "Deudas", "expense", now, now,
-        "cat-expense-savings", "Ahorro", "expense", now, now,
-        "cat-income-salary", "Ingreso", "income", now, now,
-        "cat-income-other", "Otros ingresos", "income", now, now,
-      ]
-    );
-  }
+    await db.execAsync(`
+            CREATE TABLE payment_methods (
+                id          TEXT PRIMARY KEY NOT NULL,
+                user_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                type        TEXT NOT NULL,
+                last_four   TEXT,
+                color       TEXT NOT NULL DEFAULT '#6B7280',
+                icon        TEXT NOT NULL DEFAULT 'credit-card',
+                is_active   INTEGER NOT NULL DEFAULT 1,
+                created_at  TEXT NOT NULL,
+                updated_at  TEXT NOT NULL,
+                sync_status TEXT NOT NULL DEFAULT 'synced'
+            );
+        `);
 
-  const existingAccounts = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM accounts`
-  );
+    await db.execAsync(`
+            CREATE TABLE transactions (
+                id                  TEXT PRIMARY KEY NOT NULL,
+                user_id             TEXT NOT NULL,
+                category_id         TEXT NOT NULL,
+                payment_method_id   TEXT,
+                transaction_date    TEXT NOT NULL,
+                type                TEXT NOT NULL,
+                concept             TEXT,
+                amount              REAL NOT NULL,
+                budgeted_amount     REAL,
+                notes               TEXT,
+                deleted_at          TEXT,
+                created_at          TEXT NOT NULL,
+                updated_at          TEXT NOT NULL,
+                sync_status         TEXT NOT NULL DEFAULT 'pending'
+            );
+        `);
 
-  if ((existingAccounts?.count ?? 0) === 0) {
-    await db.runAsync(
-      `
-        INSERT INTO accounts (id, name, type, is_default, is_active, created_at, updated_at)
-        VALUES
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?),
-          (?, ?, ?, 1, 1, ?, ?)
-      `,
-      [
-        "acc-cash", "Efectivo", "both", now, now,
-        "acc-bbva-credit", "TDC BBVA", "expense", now, now,
-        "acc-didi-credit", "TDC DiDi", "expense", now, now,
-        "acc-debit", "Débito", "both", now, now,
-        "acc-transfer", "Transferencia", "both", now, now,
-        "acc-payroll", "Nómina", "income", now, now,
-      ]
-    );
+    await db.execAsync(`
+            CREATE TABLE sync_queue (
+                id              TEXT PRIMARY KEY NOT NULL,
+                entity_type     TEXT NOT NULL,
+                entity_local_id TEXT NOT NULL,
+                operation_type  TEXT NOT NULL,
+                payload_json    TEXT NOT NULL,
+                status          TEXT NOT NULL,
+                retry_count     INTEGER NOT NULL DEFAULT 0,
+                last_error      TEXT,
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL
+            );
+        `);
+
+    await db.execAsync(`
+            CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions (user_id);
+            CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (transaction_date);
+            CREATE INDEX IF NOT EXISTS idx_transactions_sync ON transactions (sync_status);
+            CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status);
+        `);
+
+    await db.execAsync(`PRAGMA foreign_keys = ON;`);
+    await db.runAsync(`PRAGMA user_version = 2;`);
   }
 }

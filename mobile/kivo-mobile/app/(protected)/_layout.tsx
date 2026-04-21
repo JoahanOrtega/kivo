@@ -1,16 +1,17 @@
 import { Redirect, Tabs } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import NetInfo from "@react-native-community/netinfo";
 
 import { useAuthStore } from "@/store/auth-store";
 import { ActionSheet } from "@/components/ui/action-sheet";
+import { processSyncQueue } from "@/features/sync/sync.service";
 import { colors } from "@/theme/colors";
 
-// ─── FAB como tab central ─────────────────────────────────────────────────────
-// onPress recibe la función para abrir el sheet — no navega directamente.
+// ─── FAB central ─────────────────────────────────────────────────────────────
 function FABTabButton({ onPress }: { onPress: () => void }) {
     const handlePress = async () => {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -52,20 +53,45 @@ function FABTabButton({ onPress }: { onPress: () => void }) {
 // ─── Layout ───────────────────────────────────────────────────────────────────
 export default function ProtectedLayout() {
     const { isAuthenticated, isHydrated } = useAuthStore();
-
-    // ─── Estado del ActionSheet ───────────────────────────────────────────────
-    // Controla si el sheet de selección de tipo está visible.
     const [sheetVisible, setSheetVisible] = useState(false);
+
+    // ─── Sync automático al reconectar ────────────────────────────────────────
+    // NetInfo escucha cambios de conectividad. Cuando el dispositivo
+    // pasa de sin conexión a con conexión, dispara el sync automáticamente.
+    // El usuario nunca ve este proceso — ocurre en background.
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener((state) => {
+            if (state.isConnected && state.isInternetReachable) {
+                // Ejecutamos el sync sin await para no bloquear la UI.
+                // Si falla, los items quedan en la cola para el próximo intento.
+                void processSyncQueue().then((result) => {
+                    if (result.completed > 0) {
+                        console.log(`Sync automático: ${result.completed} item(s) sincronizados`);
+                    }
+                });
+            }
+        });
+
+        // Limpiamos el listener cuando el componente se desmonta
+        return () => unsubscribe();
+    }, []);
+
+    // ─── Sync al iniciar la app ───────────────────────────────────────────────────
+    // Si hay items pendientes cuando el usuario abre la app con internet,
+    // los sincronizamos inmediatamente sin esperar un cambio de red.
+    useEffect(() => {
+        void processSyncQueue().then((result) => {
+            if (result.completed > 0) {
+                console.log(`Sync inicial: ${result.completed} item(s) sincronizados`);
+            }
+        });
+    }, []); // Array vacío = solo se ejecuta una vez al montar
 
     if (!isHydrated) return null;
     if (!isAuthenticated) return <Redirect href="/login" />;
 
-    // ─── Handlers del ActionSheet ─────────────────────────────────────────────
     const handleSelectExpense = () => {
         setSheetVisible(false);
-        // Pasamos el tipo como query param para que add-transaction
-        // abra directamente en modo egreso sin que el usuario tenga
-        // que seleccionarlo de nuevo — resuelve la Ley de Jakob.
         router.push("/add-transaction?type=expense");
     };
 
@@ -115,9 +141,6 @@ export default function ProtectedLayout() {
                     }}
                 />
 
-                {/* ── Tab central: FAB ──────────────────────────────────────────
-                    Abre el ActionSheet en lugar de navegar directamente.
-                    El usuario elige el tipo y luego se navega. */}
                 <Tabs.Screen
                     name="add"
                     options={{
@@ -144,9 +167,6 @@ export default function ProtectedLayout() {
                 />
             </Tabs>
 
-            {/* ── ActionSheet ───────────────────────────────────────────────────
-                Vive fuera del Tabs para que aparezca sobre toda la UI
-                incluyendo el tab bar. */}
             <ActionSheet
                 visible={sheetVisible}
                 onClose={() => setSheetVisible(false)}

@@ -1,7 +1,9 @@
 import { create } from "zustand";
 
+import * as api from "@/services/api";
 import { clearSession, getSession, saveSession } from "@/services/secure-session";
 import type { AuthSession, AuthUser } from "@/types/auth";
+import { bootstrapCatalogs } from "@/features/sync/bootstrap.service";
 
 type AuthState = {
     isAuthenticated: boolean;
@@ -9,6 +11,7 @@ type AuthState = {
     session: AuthSession | null;
     hydrateSession: () => Promise<void>;
     login: (payload: { email: string; password: string }) => Promise<void>;
+    register: (payload: { email: string; password: string; fullName: string }) => Promise<void>;
     logout: () => Promise<void>;
 };
 
@@ -17,14 +20,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     isHydrated: false,
     session: null,
 
-    /**
-     * Carga la sesión persistida al iniciar la app.
-     * Esto permite restaurar el estado autenticado tras cerrar y abrir la aplicación.
-     */
+    // ─── Hidratación ──────────────────────────────────────────────────────────
+    // Carga la sesión persistida al iniciar la app.
+    // Si existe un token válido, el usuario queda autenticado sin re-login.
     hydrateSession: async () => {
         try {
             const storedSession = await getSession();
-
             set({
                 session: storedSession,
                 isAuthenticated: Boolean(storedSession),
@@ -32,7 +33,6 @@ export const useAuthStore = create<AuthState>((set) => ({
             });
         } catch (error) {
             console.error("Error hydrating session:", error);
-
             set({
                 session: null,
                 isAuthenticated: false,
@@ -41,40 +41,77 @@ export const useAuthStore = create<AuthState>((set) => ({
         }
     },
 
-    /**
-     * Inicio de sesión temporal del MVP.
-     * Simula una autenticación exitosa y persiste la sesión localmente.
-     * Más adelante reemplazaremos esto por el login real contra backend.
-     */
-    login: async ({ email }: { email: string; password: string }) => {
-        const normalizedEmail = email.trim().toLowerCase();
+    // ─── Login real contra el backend ─────────────────────────────────────────
+    // Reemplaza el mock anterior. Llama a POST /auth/login y persiste
+    // el token JWT en SecureStore para sesiones futuras.
+    login: async ({ email, password }) => {
+        const response = await api.login({
+            email: email.trim().toLowerCase(),
+            password,
+        });
 
-        const mockUser: AuthUser = {
-            id: "local-user-1",
-            name: "Johan",
-            email: normalizedEmail,
+        const user: AuthUser = {
+            id: response.user.id,
+            name: response.user.full_name,
+            email: response.user.email,
         };
 
-        const mockSession: AuthSession = {
-            accessToken: "mock-access-token",
-            refreshToken: "mock-refresh-token",
-            user: mockUser,
+        const session: AuthSession = {
+            accessToken: response.access_token,
+            refreshToken: "",
+            user,
         };
 
-        await saveSession(mockSession);
+        await saveSession(session);
 
         set({
-            session: mockSession,
+            session,
             isAuthenticated: true,
         });
+
+        // ── Sincronizar catálogos del backend hacia SQLite ──────────────────────
+        // Se ejecuta en background después del login — no bloquea la navegación.
+        // Actualiza los UUIDs locales con los reales del servidor.
+        await bootstrapCatalogs();
     },
 
-    /**
-     * Cierra la sesión en memoria y elimina la sesión persistida del dispositivo.
-     */
+    // ─── Register real contra el backend ─────────────────────────────────────
+    // Llama a POST /auth/register y deja al usuario logueado inmediatamente.
+    register: async ({ email, password, fullName }: {
+        email: string;
+        password: string;
+        fullName: string;
+    }) => {
+        const response = await api.register({
+            email: email.trim().toLowerCase(),
+            password,
+            full_name: fullName,
+        });
+
+        const user: AuthUser = {
+            id: response.user.id,
+            name: response.user.full_name,
+            email: response.user.email,
+        };
+
+        const session: AuthSession = {
+            accessToken: response.access_token,
+            refreshToken: "",
+            user,
+        };
+
+        await saveSession(session);
+
+        set({
+            session,
+            isAuthenticated: true,
+        });
+        await bootstrapCatalogs();
+    },
+
+    // ─── Logout ───────────────────────────────────────────────────────────────
     logout: async () => {
         await clearSession();
-
         set({
             session: null,
             isAuthenticated: false,

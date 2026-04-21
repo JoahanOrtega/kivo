@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FormScreenContainer } from "@/components/layout/form-screen-container";
@@ -22,6 +22,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { colors } from "@/theme/colors";
 import { spacing } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
+import { useSyncStore } from "@/store/sync-store";
 
 // ─── Estado inicial del dashboard ────────────────────────────────────────────
 // Definimos los valores por defecto fuera del componente para que no se
@@ -56,6 +57,17 @@ export default function HomeScreen() {
     // para mostrárselo al usuario en lugar de dejar la pantalla vacía.
     const [hasError, setHasError] = useState(false);
 
+    // ─── Recargar dashboard cuando el sync termina ────────────────────────────
+    // lastSyncAt cambia cada vez que el sync completa un batch.
+    // Esto garantiza que el banner amarillo desaparezca inmediatamente.
+    const lastSyncAt = useSyncStore((state) => state.lastSyncAt);
+
+    useEffect(() => {
+        if (lastSyncAt > 0) {
+            void loadDashboard();
+        }
+    }, [lastSyncAt]);
+
     // ─── Carga del dashboard ──────────────────────────────────────────────────
     // useCallback memoriza la función para que useFocusEffect no la recree
     // en cada render. Solo se recrea cuando cambian sus dependencias.
@@ -76,9 +88,8 @@ export default function HomeScreen() {
             });
 
             setSummary(result);
-        } catch {
-            // Si la carga falla activamos el estado de error para
-            // mostrar feedback al usuario en lugar de pantalla vacía.
+        } catch (error) {
+            console.error("Dashboard error:", error);
             setHasError(true);
         } finally {
             // finally siempre se ejecuta — con éxito o con error.

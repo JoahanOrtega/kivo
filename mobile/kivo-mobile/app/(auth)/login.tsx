@@ -27,6 +27,7 @@ export default function LoginScreen() {
     const {
         control,
         handleSubmit,
+        setError,
         formState: { errors, isSubmitting },
     } = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
@@ -37,9 +38,21 @@ export default function LoginScreen() {
     });
 
     const onSubmit = async (values: LoginFormValues) => {
-        Keyboard.dismiss();
-        await login(values);
-        router.replace("/home");
+        try {
+            Keyboard.dismiss();
+            await login(values);
+            router.replace("/home");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "No se pudo iniciar sesión";
+
+            setError("password", {
+                type: "manual",
+                message,
+            });
+        }
     };
 
     return (
