@@ -1,0 +1,79 @@
+# =============================================================================
+# ci.yml — Pipeline de integración continua
+#
+# Se ejecuta en cada push a main o develop, y en cada Pull Request.
+# Corre los tests del backend automáticamente para verificar que
+# ningún cambio rompe la API.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test-backend:
+    name: Tests del backend
+    runs-on: ubuntu-latest
+
+    # ── Servicio de PostgreSQL para los tests ──────────────────────────────────
+    # GitHub Actions levanta un contenedor de PostgreSQL automáticamente.
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kivo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # ── Checkout del código ──────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Instalar Rust ────────────────────────────────────────────────────────
+      - name: Instalar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # ── Cache de dependencias ────────────────────────────────────────────────
+      # Cachear target/ acelera builds subsecuentes de ~5min a ~30seg
+      - name: Cache de Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/kivo-backend/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('backend/kivo-backend/Cargo.lock') }}
+
+      # ── Instalar sqlx-cli para migrations ───────────────────────────────────
+      - name: Instalar sqlx-cli
+        run: cargo install sqlx-cli --no-default-features --features postgres
+
+      # ── Correr migrations ────────────────────────────────────────────────────
+      - name: Correr migrations
+        working-directory: backend/kivo-backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kivo_test
+        run: sqlx migrate run
+
+      # ── Correr tests ─────────────────────────────────────────────────────────
+      - name: Correr tests
+        working-directory: backend/kivo-backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kivo_test
+          JWT_SECRET: test_secret_key_for_ci
+          JWT_EXPIRATION_HOURS: 24
+          PORT: 8080
+          RUST_LOG: error
+        run: cargo test
