@@ -1,3 +1,7 @@
+[lib]
+name = "kivo_backend"
+path = "src/lib.rs"
+
 [package]
 name = "kivo-backend"
 version = "0.1.0"
@@ -42,3 +46,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+[dev-dependencies]
+# Permite hacer requests HTTP a Axum en tests sin levantar un servidor real
+axum-test = "15"
+# Runtime async para tests
+tokio = { version = "1", features = ["full"] }

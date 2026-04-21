@@ -1,38 +1,14 @@
-// =============================================================================
-// main.rs — Punto de entrada del servidor Kivo
-//
-// Responsabilidades:
-// 1. Cargar variables de entorno desde .env
-// 2. Inicializar el sistema de logging
-// 3. Conectar al pool de PostgreSQL
-// 4. Construir el router de Axum con todas las rutas
-// 5. Iniciar el servidor HTTP
-// =============================================================================
-
-use axum::Router;
+use kivo_backend::build_app;
+use kivo_backend::db;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-// Declaramos los módulos del proyecto.
-// Cada módulo vive en su propia carpeta dentro de src/.
-mod db;
-mod errors;
-mod handlers;
-mod middleware;
-mod models;
-
 #[tokio::main]
 async fn main() {
-    // ─── 1. Cargar variables de entorno ──────────────────────────────────────
-    // dotenvy lee el archivo .env y carga las variables en el proceso.
-    // Si no existe el archivo, no falla — usa las variables del sistema.
     dotenvy::dotenv().ok();
 
-    // ─── 2. Inicializar logging ───────────────────────────────────────────────
-    // tracing-subscriber lee RUST_LOG del entorno para determinar
-    // qué nivel de logs mostrar (debug, info, warn, error).
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -43,9 +19,6 @@ async fn main() {
 
     info!("Iniciando servidor Kivo...");
 
-    // ─── 3. Conectar a PostgreSQL ─────────────────────────────────────────────
-    // El pool de conexiones se crea una vez y se comparte entre todos
-    // los handlers mediante el estado de Axum (AppState).
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL debe estar definida en .env");
 
@@ -53,21 +26,8 @@ async fn main() {
 
     info!("Conexión a PostgreSQL establecida");
 
-    // ─── Construir el router ──────────────────────────────────────────────────────
-    // Rate limiting removido temporalmente — tower_governor no es compatible
-    // con el extractor de IP en desarrollo local.
-    // Se implementará correctamente en el deploy con un reverse proxy (nginx/cloudflare).
-    let app = Router::new()
-        .merge(handlers::health::router())
-        .merge(handlers::auth::router())
-        .merge(handlers::transactions::router())
-        .merge(handlers::categories::router())
-        .merge(handlers::payment_methods::router())
-        .merge(handlers::sync::router())
-        .merge(handlers::reports::router())
-        .with_state(pool);
+    let app = build_app(pool);
 
-    // ─── 5. Iniciar el servidor ───────────────────────────────────────────────
     let port = std::env::var("PORT")
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
