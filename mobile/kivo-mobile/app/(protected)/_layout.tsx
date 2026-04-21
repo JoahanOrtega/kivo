@@ -151,6 +151,18 @@ export default function ProtectedLayout() {
                     }}
                 />
 
+                {/* ── Tab: Reportes ── */}
+                <Tabs.Screen
+                    name="reports"
+                    options={{
+                        title: "Reportes",
+                        tabBarIcon: ({ color, size }) => (
+                            <Ionicons name="bar-chart-outline" size={size} color={color} />
+                        ),
+                    }}
+                />
+
+                {/* ── Tab: Ajustes ── */}
                 <Tabs.Screen
                     name="settings"
                     options={{

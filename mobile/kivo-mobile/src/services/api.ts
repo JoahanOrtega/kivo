@@ -177,16 +177,6 @@ export async function syncToServer(payload: SyncPayload): Promise<SyncResponse> 
     return handleResponse<SyncResponse>(response);
 }
 
-// ─── Reportes ─────────────────────────────────────────────────────────────────
-
-export async function getMonthlyReport(year: number, month: number) {
-    const response = await fetch(
-        `${BASE_URL}/reports/monthly?year=${year}&month=${month}`,
-        { headers: await buildHeaders(true) }
-    );
-    return handleResponse(response);
-}
-
 // ─── Categorías ───────────────────────────────────────────────────────────────
 
 export async function getCategories() {
@@ -203,4 +193,43 @@ export async function getPaymentMethods() {
         headers: await buildHeaders(true),
     });
     return handleResponse(response);
+}
+
+// ─── Tipos de reporte mensual ─────────────────────────────────────────────────
+export interface MonthlyCategorySummary {
+    category_id: string;
+    category_name: string;
+    category_type: string;
+    total: number;
+    count: number;
+}
+
+export interface MonthlyPaymentMethodSummary {
+    payment_method_id: string | null;
+    payment_method_name: string;
+    total: number;
+    count: number;
+}
+
+export interface MonthlyReportData {
+    year: number;
+    month: number;
+    total_income: number;
+    total_expense: number;
+    total_savings: number;
+    balance: number;
+    transaction_count: number;
+    by_category: MonthlyCategorySummary[];
+    by_payment_method: MonthlyPaymentMethodSummary[];
+}
+
+export async function getMonthlyReport(
+    year: number,
+    month: number
+): Promise<MonthlyReportData> {
+    const response = await fetch(
+        `${BASE_URL}/reports/monthly?year=${year}&month=${month}`,
+        { headers: await buildHeaders(true) }
+    );
+    return handleResponse<MonthlyReportData>(response);
 }
