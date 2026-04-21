@@ -90,54 +90,83 @@ async function syncPaymentMethods(): Promise<void> {
 // ─── Sincronizar transacciones del mes actual ─────────────────────────────────
 // Descarga las transacciones del mes actual del backend y las guarda
 // en SQLite con sync_status = 'synced' para que no se vuelvan a subir.
+// ─── Sincronizar transacciones históricas ─────────────────────────────────────
+// Descarga todos los meses con datos desde el backend.
+// No solo el mes actual — el usuario tiene historial de 2025 y 2026.
 async function syncTransactions(userId: string): Promise<void> {
     const db = await getDatabase();
     const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
 
-    const transactions = await api.getTransactions(year, month) as any[];
+    // Descargamos desde Enero 2025 hasta el mes actual
+    const startYear = 2025;
+    const startMonth = 1;
+    const endYear = now.getFullYear();
+    const endMonth = now.getMonth() + 1;
 
-    for (const tx of transactions) {
-        await db.runAsync(
-            `
-            INSERT INTO transactions (
-                id, user_id, category_id, payment_method_id,
-                transaction_date, type, concept,
-                amount, budgeted_amount, notes,
-                deleted_at, created_at, updated_at, sync_status
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 'synced')
-            ON CONFLICT(id) DO UPDATE SET
-                category_id         = excluded.category_id,
-                payment_method_id   = excluded.payment_method_id,
-                transaction_date    = excluded.transaction_date,
-                type                = excluded.type,
-                concept             = excluded.concept,
-                amount              = excluded.amount,
-                budgeted_amount     = excluded.budgeted_amount,
-                notes               = excluded.notes,
-                updated_at          = excluded.updated_at,
-                sync_status         = 'synced'
-            `,
-            [
-                tx.id,
-                userId,
-                tx.category_id,
-                tx.payment_method_id ?? null,
-                tx.transaction_date,
-                tx.type,
-                tx.concept ?? null,
-                tx.amount,
-                tx.budgeted_amount ?? null,
-                tx.notes ?? null,
-                tx.created_at,
-                tx.updated_at,
-            ]
-        );
+    let totalDownloaded = 0;
+
+    // Iteramos mes por mes
+    let year = startYear;
+    let month = startMonth;
+
+    while (year < endYear || (year === endYear && month <= endMonth)) {
+        try {
+            const transactions = await api.getTransactions(year, month) as any[];
+
+            for (const tx of transactions) {
+                await db.runAsync(
+                    `
+                    INSERT INTO transactions (
+                        id, user_id, category_id, payment_method_id,
+                        transaction_date, type, concept,
+                        amount, budgeted_amount, notes,
+                        deleted_at, created_at, updated_at, sync_status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 'synced')
+                    ON CONFLICT(id) DO UPDATE SET
+                        category_id         = excluded.category_id,
+                        payment_method_id   = excluded.payment_method_id,
+                        transaction_date    = excluded.transaction_date,
+                        type                = excluded.type,
+                        concept             = excluded.concept,
+                        amount              = excluded.amount,
+                        budgeted_amount     = excluded.budgeted_amount,
+                        notes               = excluded.notes,
+                        updated_at          = excluded.updated_at,
+                        sync_status         = 'synced'
+                    `,
+                    [
+                        tx.id,
+                        userId,
+                        tx.category_id,
+                        tx.payment_method_id ?? null,
+                        tx.transaction_date,
+                        tx.type,
+                        tx.concept ?? null,
+                        tx.amount,
+                        tx.budgeted_amount ?? null,
+                        tx.notes ?? null,
+                        tx.created_at,
+                        tx.updated_at,
+                    ]
+                );
+            }
+
+            totalDownloaded += transactions.length;
+        } catch {
+            // Si un mes falla continuamos con el siguiente
+            console.warn(`Bootstrap: falló mes ${year}-${month}`);
+        }
+
+        // Avanzar al siguiente mes
+        month++;
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
     }
 
-    console.log(`Bootstrap: ${transactions.length} transacciones descargadas`);
+    console.log(`Bootstrap: ${totalDownloaded} transacciones descargadas`);
 }
 
 // ─── Bootstrap completo ───────────────────────────────────────────────────────
