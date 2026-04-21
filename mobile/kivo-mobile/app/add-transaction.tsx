@@ -55,6 +55,7 @@ export default function AddTransactionScreen() {
     // ─── Estado: catálogos ────────────────────────────────────────────────────
     const [categories, setCategories] = useState<Category[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [isLoadingCatalogs, setIsLoadingCatalogs] = useState(true);
 
     // ─── Estado: error de catálogos ───────────────────────────────────────────
@@ -103,6 +104,8 @@ export default function AddTransactionScreen() {
 
     // Observamos el tipo seleccionado para recargar catálogos
     const selectedType = useWatch({ control, name: "type" });
+    const selectedCategoryId = useWatch({ control, name: "categoryId" });
+    const selectedAccountId = useWatch({ control, name: "accountId" });
 
     // ─── Carga de catálogos ───────────────────────────────────────────────────
     // Se recarga cada vez que el usuario cambia el tipo —
@@ -110,7 +113,7 @@ export default function AddTransactionScreen() {
     useEffect(() => {
         const loadCatalogs = async () => {
             try {
-                setIsLoadingCatalogs(true);
+                if (isInitialLoad) setIsLoadingCatalogs(true);
                 setHasCatalogError(false);
 
                 const [loadedCategories, loadedAccounts] = await Promise.all([
@@ -121,12 +124,33 @@ export default function AddTransactionScreen() {
                 setCategories(loadedCategories);
                 setAccounts(loadedAccounts);
 
-                // Preseleccionamos el primer item de cada catálogo
-                // para que el formulario siempre tenga un valor válido
-                setValue("categoryId", loadedCategories[0]?.id ?? "");
-                setValue("accountId", loadedAccounts[0]?.id ?? "");
+                if (isInitialLoad) {
+                    setValue("categoryId", loadedCategories[0]?.id ?? "");
+
+                    // Para ingreso — asignamos Efectivo automáticamente
+                    // Para egreso — el usuario elige
+                    if (selectedType === "income") {
+                        const efectivo = loadedAccounts.find(
+                            (a) => a.name.toLowerCase() === "efectivo"
+                        );
+                        setValue("accountId", efectivo?.id ?? loadedAccounts[0]?.id ?? "");
+                    } else {
+                        setValue("accountId", loadedAccounts[0]?.id ?? "");
+                    }
+
+                    setIsInitialLoad(false);
+                } else {
+                    setValue("categoryId", "");
+                    if (selectedType === "income") {
+                        const efectivo = loadedAccounts.find(
+                            (a) => a.name.toLowerCase() === "efectivo"
+                        );
+                        setValue("accountId", efectivo?.id ?? loadedAccounts[0]?.id ?? "");
+                    } else {
+                        setValue("accountId", "");
+                    }
+                }
             } catch {
-                // Activamos el estado de error para mostrar feedback
                 setHasCatalogError(true);
                 showToast("No se pudieron cargar las opciones", "error");
             } finally {
@@ -173,16 +197,11 @@ export default function AddTransactionScreen() {
     };
 
     // ─── Render: estado de carga ──────────────────────────────────────────────
-    if (isLoadingCatalogs) {
+    // Solo mostramos el spinner en la carga inicial
+    if (isLoadingCatalogs && isInitialLoad) {
         return (
             <FormScreenContainer>
-                <View
-                    style={{
-                        flex: 1,
-                        justifyContent: "center",
-                        alignItems: "center",
-                    }}
-                >
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                     <ActivityIndicator size="large" color={colors.primary} />
                 </View>
             </FormScreenContainer>
@@ -292,27 +311,26 @@ export default function AddTransactionScreen() {
                 />
 
                 {/* ── Selector de categoría ── */}
+                {/* ── Selector de categoría ── */}
                 <CatalogSelector
                     title="Categoría"
                     options={categories}
-                    selectedId={control._formValues.categoryId}
+                    selectedId={selectedCategoryId}
                     onChange={(id) => setValue("categoryId", id)}
                     error={errors.categoryId?.message}
                 />
 
-                {/* ── Selector de cuenta ── */}
-                <CatalogSelector
-                    title="Cuenta"
-                    description={
-                        selectedType === "expense"
-                            ? "Selecciona desde dónde salió el dinero."
-                            : "Selecciona a dónde entró el dinero."
-                    }
-                    options={accounts}
-                    selectedId={control._formValues.accountId}
-                    onChange={(id) => setValue("accountId", id)}
-                    error={errors.accountId?.message}
-                />
+                {/* ── Selector de cuenta — solo para egresos ── */}
+                {selectedType === "expense" && (
+                    <CatalogSelector
+                        title="Cuenta"
+                        description="Selecciona desde dónde salió el dinero."
+                        options={accounts}
+                        selectedId={selectedAccountId}
+                        onChange={(id) => setValue("accountId", id)}
+                        error={errors.accountId?.message}
+                    />
+                )}
 
                 {/* ── Botón guardar ── */}
                 <AppButton

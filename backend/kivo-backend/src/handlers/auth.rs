@@ -30,6 +30,42 @@ pub struct Claims {
     pub iat: usize,
 }
 
+// ─── Helper: crear métodos de pago predefinidos ───────────────────────────────
+// Se llama automáticamente al registrar un nuevo usuario.
+// Crea los métodos de pago más comunes en México predefinidos.
+async fn create_default_payment_methods(
+    pool: &PgPool,
+    user_id: uuid::Uuid,
+) -> Result<(), AppError> {
+    let methods = vec![
+        ("Efectivo", "cash", "#16A34A", "wallet"),
+        ("TDC BBVA", "credit_card", "#004A98", "credit-card"),
+        ("TDC DiDi", "credit_card", "#FF6B00", "credit-card"),
+        ("TDC Nu", "credit_card", "#820AD1", "credit-card"),
+        ("Transferencia", "transfer", "#0891B2", "send"),
+        ("Débito", "debit_card", "#6B7280", "credit-card"),
+    ];
+
+    for (name, type_, color, icon) in methods {
+        sqlx::query!(
+            r#"
+            INSERT INTO payment_methods (user_id, name, type, color, icon)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, name) DO NOTHING
+            "#,
+            user_id,
+            name,
+            type_,
+            color,
+            icon,
+        )
+        .execute(pool)
+        .await?;
+    }
+
+    Ok(())
+}
+
 // ─── Handler: POST /auth/register ────────────────────────────────────────────
 // Crea una cuenta nueva con email, contraseña y nombre.
 // Retorna un JWT listo para usar — el usuario queda logueado inmediatamente.
@@ -79,6 +115,9 @@ async fn register(
     )
     .fetch_one(&pool)
     .await?;
+
+    // ── Crear métodos de pago predefinidos ───────────────────────────────────────
+    create_default_payment_methods(&pool, user.id).await?;
 
     // ── Generar tokens ────────────────────────────────────────────────────────
     let access_token = generate_jwt(&user)?;
