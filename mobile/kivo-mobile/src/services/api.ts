@@ -8,6 +8,7 @@
 // - La URL base del backend
 // =============================================================================
 
+import { AuthSession } from "@/types/auth";
 import * as SecureStore from "expo-secure-store";
 
 // ─── URL base del backend ─────────────────────────────────────────────────────
@@ -26,14 +27,48 @@ export class ApiError extends Error {
     }
 }
 
-// ─── Helper: obtener token del SecureStore ────────────────────────────────────
-// Lee el JWT guardado al hacer login para incluirlo en cada request.
-async function getAuthToken(): Promise<string | null> {
+// ─── Helper: verificar si el token está por expirar ──────────────────────────
+// Decodifica el JWT sin verificar la firma para leer la fecha de expiración.
+// Si expira en menos de 5 minutos, lo consideramos expirado.
+function isTokenExpired(token: string): boolean {
+    try {
+        const payload = token.split(".")[1];
+        const decoded = JSON.parse(atob(payload));
+        const expiresAt = decoded.exp * 1000;
+        const fiveMinutes = 5 * 60 * 1000;
+        return Date.now() > expiresAt - fiveMinutes;
+    } catch {
+        return true;
+    }
+}
+
+// ─── Helper: obtener token válido ─────────────────────────────────────────────
+// Si el access token está por expirar, usa el refresh token para obtener uno nuevo.
+// Si el refresh también falla, retorna null — el usuario deberá hacer login.
+async function getValidToken(): Promise<string | null> {
     try {
         const session = await SecureStore.getItemAsync("kivo.auth.session");
         if (!session) return null;
-        const parsed = JSON.parse(session);
-        return parsed.accessToken ?? null;
+
+        const parsed: AuthSession = JSON.parse(session);
+        const { accessToken, refreshToken } = parsed;
+
+        // Si el token sigue vigente lo usamos directamente
+        if (!isTokenExpired(accessToken)) {
+            return accessToken;
+        }
+
+        // Token expirado — intentamos renovarlo con el refresh token
+        if (!refreshToken) return null;
+
+        const newAccessToken = await refreshAccessToken(refreshToken);
+        if (!newAccessToken) return null;
+
+        // Guardamos el nuevo access token en SecureStore
+        const updatedSession = { ...parsed, accessToken: newAccessToken };
+        await SecureStore.setItemAsync("kivo.auth.session", JSON.stringify(updatedSession));
+
+        return newAccessToken;
     } catch {
         return null;
     }
@@ -46,13 +81,30 @@ async function buildHeaders(authenticated: boolean): Promise<HeadersInit> {
     };
 
     if (authenticated) {
-        const token = await getAuthToken();
+        const token = await getValidToken();
         if (token) {
             headers["Authorization"] = `Bearer ${token}`;
         }
     }
 
     return headers;
+}
+// ─── Refresh token ────────────────────────────────────────────────────────────
+export async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+    try {
+        const response = await fetch(`${BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        return data.access_token ?? null;
+    } catch {
+        return null;
+    }
 }
 
 // ─── Helper: procesar respuesta ───────────────────────────────────────────────
@@ -87,6 +139,7 @@ export interface LoginDto {
 
 export interface AuthResponse {
     access_token: string;
+    refresh_token: string; 
     token_type: string;
     user: {
         id: string;

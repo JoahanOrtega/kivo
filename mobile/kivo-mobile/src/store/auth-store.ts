@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         const session: AuthSession = {
             accessToken: response.access_token,
-            refreshToken: "",
+            refreshToken: response.refresh_token,
             user,
         };
 
@@ -100,7 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
         const session: AuthSession = {
             accessToken: response.access_token,
-            refreshToken: "",
+            refreshToken: response.refresh_token, // ← ya no es string vacío
             user,
         };
 
